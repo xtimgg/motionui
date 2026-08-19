@@ -1,0 +1,2070 @@
+<!DOCTYPE html>
+<html lang="en" data-mu-hue="250">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MotionUI</title>
+  <link rel="stylesheet" href="theme.css">
+  <link rel="stylesheet" href="components.css">
+  <style>
+  html, body { height: 100%; overflow: hidden; }
+
+  .canvas {
+    display: grid;
+    grid-template-columns: 210px 1fr;
+    grid-template-rows: 52px 1fr;
+    height: 100vh;
+  }
+
+  /* ── Topbar ── */
+  .topbar {
+    grid-column: 1 / -1;
+    background: color-mix(in oklch, var(--color-surface-container) 85%, transparent);
+    backdrop-filter: blur(20px) saturate(1.6);
+    -webkit-backdrop-filter: blur(20px) saturate(1.6);
+    border-bottom: 1px solid var(--color-outline-variant);
+    display: flex; align-items: center;
+    padding: 0 var(--space-5); gap: var(--space-5);
+  }
+  .topbar-brand {
+    font: 700 14px/1 var(--font-sans);
+    background: linear-gradient(120deg, var(--color-primary), var(--color-tertiary));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    background-clip: text; flex: 1; letter-spacing: -0.01em;
+  }
+  .ctrl { display: flex; align-items: center; gap: var(--space-3); }
+  .ctrl-label {
+    font: 600 10px/1 var(--font-sans);
+    color: var(--color-on-surface-variant);
+    letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  /* theme sliders shared styles */
+  .theme-slider-wrap {
+    display: flex; align-items: center; gap: var(--space-2);
+  }
+  /* rainbow slider */
+  #hue-slider {
+    -webkit-appearance: none; appearance: none;
+    width: 130px; height: 13px;
+    border-radius: var(--radius-full);
+    background: linear-gradient(to right,
+      oklch(70% 0.18 0),oklch(70% 0.18 45),oklch(70% 0.18 90),
+      oklch(70% 0.18 135),oklch(70% 0.18 180),oklch(70% 0.18 225),
+      oklch(70% 0.18 270),oklch(70% 0.18 315),oklch(70% 0.18 360)) !important;
+    cursor: pointer;
+  }
+  #hue-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: white; box-shadow: 0 1px 4px rgba(0,0,0,.6);
+    border: 3px solid var(--color-primary);
+    transition: transform 150ms var(--ease-spring), border-color 200ms;
+  }
+  #hue-slider:hover::-webkit-slider-thumb { transform: scale(1.15); }
+  #hue-slider::-moz-range-thumb {
+    width: 18px; height: 18px; border-radius: 50%;
+    background: white; border: 3px solid var(--color-primary);
+    box-shadow: 0 1px 4px rgba(0,0,0,.6);
+  }
+  .hue-dot {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--color-primary); flex-shrink: 0;
+    box-shadow: 0 0 0 2px var(--color-outline-variant);
+    transition: background 200ms;
+  }
+  #hue-val {
+    font: 600 10px/1 var(--font-sans);
+    color: var(--color-primary); min-width: 28px;
+    font-variant-numeric: tabular-nums;
+    transition: color 200ms;
+  }
+  /* sat/bri sliders */
+  .sat-slider, .bri-slider {
+    -webkit-appearance: none; appearance: none;
+    width: 90px; height: 10px;
+    border-radius: var(--radius-full);
+    cursor: pointer; border: none;
+  }
+  .sat-slider {
+    /* grey→vivid at current hue — recomputed via JS */
+    background: linear-gradient(to right, hsl(250,0%,60%), oklch(70% 0.22 250));
+  }
+  .bri-slider {
+    /* dark→normal→bright */
+    background: linear-gradient(to right, oklch(20% 0.08 250), oklch(70% 0.16 250), oklch(94% 0.12 250));
+  }
+  .sat-slider::-webkit-slider-thumb,
+  .bri-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: white; box-shadow: 0 1px 4px rgba(0,0,0,.5);
+    border: 2.5px solid var(--color-primary);
+    transition: transform 150ms var(--ease-spring), border-color 200ms;
+  }
+  .sat-slider:hover::-webkit-slider-thumb,
+  .bri-slider:hover::-webkit-slider-thumb { transform: scale(1.15); }
+  .sat-slider::-moz-range-thumb,
+  .bri-slider::-moz-range-thumb {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: white; border: 2.5px solid var(--color-primary);
+    box-shadow: 0 1px 4px rgba(0,0,0,.5);
+  }
+  .theme-val {
+    font: 600 10px/1 var(--font-sans);
+    color: var(--color-on-surface-variant); min-width: 22px;
+    font-variant-numeric: tabular-nums;
+  }
+  /* topbar separator */
+  .ctrl-sep { width: 1px; height: 20px; background: var(--color-outline-variant); opacity: 0.5; margin: 0 var(--space-1); }
+  /* blur mini-switch */
+  .blur-sw { display: flex; align-items: center; gap: var(--space-2); cursor: pointer; }
+  .blur-sw input { position: absolute; opacity: 0; pointer-events: none; }
+  .blur-track {
+    width: 32px; height: 18px; border-radius: var(--radius-full);
+    background: var(--color-surface-container-highest);
+    border: 1.5px solid var(--color-outline);
+    position: relative;
+    transition: background var(--dur-5) var(--ease-spring-soft), border-color var(--dur-5) var(--ease-spring-soft);
+  }
+  .blur-thumb {
+    position: absolute; top: 50%; left: 2px; transform: translateY(-50%);
+    width: 11px; height: 11px; border-radius: 50%;
+    background: var(--color-outline);
+    transition: left var(--dur-5) var(--ease-spring-bouncy), background var(--dur-4) var(--ease-spring-soft);
+  }
+  .blur-sw input:checked ~ .blur-track { background: var(--color-primary); border-color: var(--color-primary); }
+  .blur-sw input:checked ~ .blur-track .blur-thumb { left: calc(100% - 13px); background: var(--color-on-primary); }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    background: var(--color-surface-container-low);
+    border-right: 1px solid var(--color-outline-variant);
+    padding: var(--space-2) 0;
+    overflow-y: auto; height: calc(100vh - 52px);
+    scrollbar-width: none;
+  }
+  .sidebar::-webkit-scrollbar { display: none; }
+  .sidebar a {
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: 8px var(--space-3) 8px var(--space-4);
+    font: 500 12px/1.3 var(--font-sans);
+    color: var(--color-on-surface-variant); text-decoration: none;
+    border-radius: 0 var(--radius-full) var(--radius-full) 0;
+    margin-right: var(--space-2);
+    transition: background var(--dur-3) var(--ease-out), color var(--dur-3) var(--ease-out), padding var(--dur-4) var(--ease-spring);
+  }
+  .sidebar a:hover { background: var(--color-surface-container-high); color: var(--color-on-surface); padding-left: var(--space-5); }
+  .sidebar a.active { background: var(--color-secondary-container); color: var(--color-on-secondary-container); font-weight: 700; padding-left: var(--space-5); }
+  .sidebar-lbl {
+    font: 600 9px/1 var(--font-sans); color: var(--color-on-surface-variant);
+    opacity: 0.45; padding: var(--space-3) var(--space-4) var(--space-1);
+    text-transform: uppercase; letter-spacing: 0.1em;
+  }
+
+  /* ── Main ── */
+  .main { overflow-y: auto; padding: var(--space-6) var(--space-6) var(--space-16); height: calc(100vh - 52px); }
+
+  .sec { margin-bottom: var(--space-12); scroll-margin-top: var(--space-6); }
+  .sec-title {
+    font: 700 26px/1.1 var(--font-sans);
+    font-variation-settings: 'wdth' 108, 'opsz' 26;
+    letter-spacing: -0.02em; margin-bottom: var(--space-2);
+    color: var(--color-on-surface);
+  }
+  .sec-sub { font: 400 13px/1.6 var(--font-sans); color: var(--color-on-surface-variant); margin-bottom: var(--space-5); max-width: 520px; }
+  .lbl {
+    font: 700 9px/1 var(--font-sans); font-variation-settings: var(--fv-label);
+    color: var(--color-on-surface-variant); opacity: 0.55;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    margin: var(--space-5) 0 var(--space-2);
+  }
+  .row { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; margin-bottom: var(--space-2); }
+  .col { display: flex; flex-direction: column; gap: var(--space-3); }
+
+  /* Color swatches */
+  .swatch-row { display: flex; border-radius: var(--radius-lg); overflow: hidden; height: 72px; margin-bottom: var(--space-3); box-shadow: var(--elevation-1); }
+  .sw { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; font: 700 8px/1.3 var(--font-sans); gap: 3px; text-align: center; padding: 0 4px; letter-spacing: 0.03em; }
+  .sw span { font-weight: 400; opacity: 0.45; font-size: 7px; }
+
+  /* Demo image gradient */
+  .demo-img { width: 100%; aspect-ratio: 16/9; background: linear-gradient(135deg, var(--color-primary-container), var(--color-tertiary-container), var(--color-secondary-container)); }
+
+  /* Elevation tiles */
+  .elev-tile { background: var(--color-surface-container-low); padding: var(--space-5) var(--space-6); border-radius: var(--radius-xl); text-align: center; min-width: 80px; transition: transform var(--dur-5) var(--ease-spring-bouncy); }
+  .elev-tile:hover { transform: translateY(-4px) scale(1.03); }
+
+  /* Preview surfaces */
+  .preview-card { background: var(--color-surface-container-low); border-radius: var(--radius-xl); padding: var(--space-4); flex: 1; min-width: 220px; }
+  .demo-group { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: flex-start; }
+  .max-480 { max-width: 480px; }
+
+  /* Glass nav dock */
+  .nav-dock {
+    display: inline-flex; align-items: center;
+    background: color-mix(in oklch, var(--color-surface-container) 72%, transparent);
+    backdrop-filter: blur(20px) saturate(1.8);
+    border: 1px solid color-mix(in oklch, var(--color-outline-variant) 50%, transparent);
+    border-radius: var(--radius-full); padding: var(--space-1);
+    gap: var(--space-1); box-shadow: var(--elevation-2); position: relative;
+  }
+  .dock-indicator {
+    position: absolute; background: var(--color-secondary-container); border-radius: var(--radius-full);
+    transition: left var(--dur-7) var(--ease-spring-soft), width var(--dur-5) var(--ease-spring-bouncy);
+    pointer-events: none; z-index: 0;
+  }
+  .dock-item {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-width: 64px; height: 48px; border: none; background: transparent; cursor: pointer;
+    color: var(--color-on-surface-variant); font: 600 10px/1 var(--font-sans);
+    letter-spacing: 0.04em; gap: var(--space-1); position: relative; z-index: 1;
+    border-radius: var(--radius-full); overflow: hidden;
+    transition: color var(--dur-4) var(--ease-spring-soft), transform var(--dur-4) var(--ease-spring-bouncy);
+  }
+  .dock-item:active { transform: scale(0.88); transition-duration: var(--dur-2); }
+  .dock-item .di { font-size: 20px; height: 22px; line-height: 1; transition: transform var(--dur-5) var(--ease-spring-bouncy); }
+  .dock-item.active { color: var(--color-on-secondary-container); }
+  .dock-item.active .di { transform: translateY(-2px) scale(1.12); }
+
+  /* ══════════════════════════════════════
+     METABALL DEMOS — WebGL
+     ══════════════════════════════════════ */
+  .mb-demos { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-4); }
+  @media (max-width: 900px) { .mb-demos { grid-template-columns: 1fr; } }
+
+  .mb-demo {
+    border-radius: var(--radius-xl);
+    position: relative;
+    overflow: hidden;
+    min-height: 200px;
+    cursor: pointer;
+    user-select: none;
+    background: var(--color-surface-container);
+    border: 1px solid var(--color-outline-variant);
+  }
+  .mb-demo canvas {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    display: block;
+  }
+  /* labels sit above canvas */
+  .mb-ui {
+    position: absolute; inset: 0;
+    pointer-events: none; z-index: 10;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .mb-ui-item {
+    color: var(--color-on-surface);
+    font: 600 11px/1.5 var(--font-sans);
+    pointer-events: none;
+    transition: opacity 0.3s ease, transform 0.5s cubic-bezier(0.34,1.56,0.64,1);
+    white-space: nowrap; text-align: center;
+  }
+  .mb-hint {
+    position: absolute; bottom: var(--space-3); left: 50%; transform: translateX(-50%);
+    font: 500 9px/1 var(--font-sans); color: var(--color-on-surface-variant); opacity: 0.5;
+    letter-spacing: 0.08em; text-transform: uppercase; pointer-events: none; white-space: nowrap;
+    z-index: 10;
+  }
+  .mb-demo-title {
+    position: absolute; top: var(--space-3); left: var(--space-4);
+    font: 600 10px/1 var(--font-sans); color: var(--color-on-surface-variant);
+    letter-spacing: 0.08em; text-transform: uppercase; z-index: 10; opacity: 0.6;
+    pointer-events: none;
+  }
+
+  /* Loader row */
+  .loader-row { display: flex; gap: var(--space-8); align-items: center; flex-wrap: wrap; margin-top: var(--space-4); }
+  .loader-item { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
+  .loader-lbl { font: 500 10px/1 var(--font-sans); color: var(--color-on-surface-variant); letter-spacing: 0.06em; text-transform: uppercase; }
+  .blob-loader-scene  { background: var(--color-surface-container-low); }
+  .blob-loader-3-scene{ background: var(--color-surface-container-low); }
+
+  /* wide ambient demo */
+  .mb-ambient {
+    border-radius: var(--radius-xl);
+    position: relative; overflow: hidden;
+    border: 1px solid var(--color-outline-variant);
+    height: 220px; margin-bottom: var(--space-4);
+    background: var(--color-surface-container-lowest);
+  }
+  .mb-ambient canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .mb-ambient-ui {
+    position: absolute; inset: 0; pointer-events: none; z-index: 10;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2);
+  }
+
+  /* ── progress stack ── */
+  .prog-stack { display: flex; flex-direction: column; gap: var(--space-5); }
+  .prog-lbl { font: 500 11px/1 var(--font-sans); color: var(--color-on-surface-variant); margin-bottom: var(--space-2); }
+
+  /* ── wave progress playground ── */
+  .wave-layout { display: grid; grid-template-columns: 1fr 320px; gap: var(--space-6); align-items: flex-start; }
+  @media (max-width: 900px) { .wave-layout { grid-template-columns: 1fr; } }
+  .wave-previews { display: flex; flex-direction: column; gap: var(--space-6); }
+  .wave-panel {
+    background: var(--color-surface-container);
+    border: 1px solid var(--color-outline-variant);
+    border-radius: var(--radius-xl);
+    padding: var(--space-5);
+    display: flex; flex-direction: column; gap: var(--space-4);
+  }
+  .wave-panel-title {
+    font: 600 11px/1 var(--font-sans); letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--color-on-surface-variant);
+  }
+  .wave-circular-row { display: flex; gap: var(--space-6); align-items: center; flex-wrap: wrap; }
+  .wave-circ-item { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); }
+  .wave-circ-lbl { font: 500 10px/1 var(--font-sans); color: var(--color-on-surface-variant); letter-spacing: 0.06em; text-transform: uppercase; }
+  .wave-ctrl-panel {
+    background: var(--color-surface-container-low);
+    border: 1px solid var(--color-outline-variant);
+    border-radius: var(--radius-xl);
+    padding: var(--space-5);
+    display: flex; flex-direction: column; gap: var(--space-4);
+    position: sticky; top: var(--space-6);
+  }
+  .wave-ctrl-title {
+    font: 700 13px/1 var(--font-sans); color: var(--color-on-surface);
+    margin-bottom: var(--space-1);
+  }
+  .wave-ctrl-row { display: flex; flex-direction: column; gap: var(--space-1); }
+  .wave-ctrl-lbl {
+    display: flex; justify-content: space-between;
+    font: 500 10px/1 var(--font-sans); color: var(--color-on-surface-variant);
+    letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .wave-ctrl-val { color: var(--color-primary); font-weight: 700; font-variant-numeric: tabular-nums; }
+  .wave-color-row { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+  .wave-value-display {
+    font: 700 28px/1 var(--font-sans);
+    color: var(--color-primary);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    text-align: center;
+    transition: color var(--dur-5);
+  }
+  .wave-value-display span { font: 500 12px/1 var(--font-sans); color: var(--color-on-surface-variant); display: block; margin-top: 4px; letter-spacing: 0.06em; text-transform: uppercase; }
+  .wave-app-demos { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4); margin-top: var(--space-2); }
+  @media (max-width: 700px) { .wave-app-demos { grid-template-columns: 1fr; } }
+  .wave-app-card {
+    background: var(--color-surface-container);
+    border: 1px solid var(--color-outline-variant);
+    border-radius: var(--radius-xl);
+    padding: var(--space-4);
+    display: flex; flex-direction: column; gap: var(--space-3);
+  }
+  .wave-app-card-title { font: 600 12px/1 var(--font-sans); color: var(--color-on-surface); }
+  .wave-app-card-sub { font: 400 11px/1.4 var(--font-sans); color: var(--color-on-surface-variant); }
+  [data-mu-design="glassy"] .wave-panel,
+  [data-mu-design="glassy"] .wave-ctrl-panel,
+  [data-mu-design="glassy"] .wave-app-card {
+    box-shadow: 0 0 0 1px rgba(255,255,255,.09) inset, 0 1px 0 rgba(255,255,255,.22) inset, inset 0 1px 8px -2px rgba(255,255,255,.14), 0 -1px 0 rgba(0,0,0,.14) inset !important;
+  }
+  </style>
+</head>
+<body>
+<div class="canvas">
+
+<!-- ── TOPBAR ── -->
+<header class="topbar">
+  <span class="topbar-brand">◈ MotionUI</span>
+  <div class="ctrl">
+    <span class="ctrl-label">Hue</span>
+    <input type="range" id="hue-slider" min="0" max="359" value="250">
+    <div class="hue-dot" id="hue-dot"></div>
+    <span id="hue-val">250°</span>
+  </div>
+  <div class="ctrl-sep"></div>
+  <div class="ctrl">
+    <span class="ctrl-label">Sat</span>
+    <input type="range" class="sat-slider" id="sat-slider" min="0" max="100" value="50">
+    <span class="theme-val" id="sat-val">50</span>
+  </div>
+  <div class="ctrl-sep"></div>
+  <div class="ctrl">
+    <span class="ctrl-label">Bri</span>
+    <input type="range" class="bri-slider" id="bri-slider" min="50" max="200" value="100">
+    <span class="theme-val" id="bri-val">100%</span>
+  </div>
+  <div class="ctrl-sep"></div>
+  <div class="ctrl">
+    <span class="ctrl-label">Design</span>
+    <select id="design-select" style="font:600 11px/1 var(--font-sans);background:var(--color-surface-container);color:var(--color-on-surface);border:1px solid var(--color-outline-variant);border-radius:var(--radius-sm);padding:3px 6px;cursor:pointer;"></select>
+  </div>
+  <div class="ctrl-sep"></div>
+  <label class="blur-sw">
+    <input type="checkbox" id="blur-toggle">
+    <div class="blur-track"><div class="blur-thumb"></div></div>
+    <span class="ctrl-label">Blur</span>
+  </label>
+</header>
+
+<!-- ── SIDEBAR ── -->
+<nav class="sidebar">
+  <div class="sidebar-lbl">Foundation</div>
+  <a href="#colors"    class="active">🎨 Colors</a>
+  <a href="#type">Aa Typography</a>
+  <div class="sidebar-lbl">Components</div>
+  <a href="#buttons">⬡ Buttons</a>
+  <a href="#cards">▭ Cards</a>
+  <a href="#chips">○ Chips</a>
+  <a href="#inputs">⌨ Inputs</a>
+  <a href="#controls">⊙ Controls</a>
+  <a href="#progress">↻ Progress</a>
+  <a href="#navigation">⊞ Navigation</a>
+  <a href="#lists">≡ Lists &amp; Menu</a>
+  <a href="#overlays">◫ Overlays</a>
+  <a href="#feedback">⚑ Feedback</a>
+  <a href="#skeletons">▒ Skeletons</a>
+  <div class="sidebar-lbl">Special</div>
+  <a href="#metaball">⬤ Metaball</a>
+  <a href="#spiky">✦ Spiky Circle</a>
+  <a href="#waveprogress">〰 Wave Progress</a>
+</nav>
+
+<!-- ── MAIN ── -->
+<main class="main">
+
+<!-- ═════════ COLORS ═════════ -->
+<section class="sec" id="colors">
+  <h2 class="sec-title">Color System</h2>
+  <p class="sec-sub">Full tonal palette from a single hue via oklch(). Near-black surfaces tinted with the hue. Use the topbar sliders: <strong>Hue</strong> (0–359°), <strong>Sat</strong> (0=greyscale / 50=normal / 100=vivid), <strong>Bri</strong> (50%=darker / 100%=normal / 200%=lighter). Same three axes as meowify's theme_hue / theme_sat / theme_bri.</p>
+  <div class="lbl">Primary</div>
+  <div class="swatch-row">
+    <div class="sw" style="background:var(--color-primary);color:var(--color-on-primary)">Primary<span>--color-primary</span></div>
+    <div class="sw" style="background:var(--color-on-primary);color:var(--color-primary)">On Primary</div>
+    <div class="sw" style="background:var(--color-primary-container);color:var(--color-on-primary-container)">Container<span>--color-primary-container</span></div>
+    <div class="sw" style="background:var(--color-on-primary-container);color:var(--color-primary-container)">On Container</div>
+  </div>
+  <div class="lbl">Secondary · Tertiary · Error</div>
+  <div class="swatch-row">
+    <div class="sw" style="background:var(--color-secondary);color:var(--color-on-secondary)">Secondary</div>
+    <div class="sw" style="background:var(--color-secondary-container);color:var(--color-on-secondary-container)">S Container</div>
+    <div class="sw" style="background:var(--color-tertiary);color:var(--color-on-tertiary)">Tertiary</div>
+    <div class="sw" style="background:var(--color-tertiary-container);color:var(--color-on-tertiary-container)">T Container</div>
+    <div class="sw" style="background:var(--color-error);color:var(--color-on-error)">Error</div>
+    <div class="sw" style="background:var(--color-error-container);color:var(--color-on-error-container)">E Container</div>
+  </div>
+  <div class="lbl">Surfaces (near #0f0f0f tinted)</div>
+  <div class="swatch-row" style="height:56px">
+    <div class="sw" style="background:var(--color-surface);color:var(--color-on-surface);font-size:7px">surface</div>
+    <div class="sw" style="background:var(--color-surface-container-low);color:var(--color-on-surface);font-size:7px">low</div>
+    <div class="sw" style="background:var(--color-surface-container);color:var(--color-on-surface);font-size:7px">base</div>
+    <div class="sw" style="background:var(--color-surface-container-high);color:var(--color-on-surface);font-size:7px">high</div>
+    <div class="sw" style="background:var(--color-surface-container-highest);color:var(--color-on-surface);font-size:7px">highest</div>
+    <div class="sw" style="background:linear-gradient(135deg,var(--color-gradient-start),var(--color-gradient-end));color:var(--color-on-primary);font-size:7px">gradient</div>
+  </div>
+</section>
+
+<!-- ═════════ TYPOGRAPHY ═════════ -->
+<section class="sec" id="type">
+  <h2 class="sec-title">Typography</h2>
+  <p class="sec-sub">Google Sans Flex with per-role variable axes: wider display, tighter labels, negative grade at small sizes.</p>
+  <div class="col" style="gap:var(--space-3)">
+    <span class="mu-display-large">Display Large</span>
+    <span class="mu-display-medium">Display Medium</span>
+    <span class="mu-headline-large">Headline Large</span>
+    <span class="mu-headline-medium">Headline Medium</span>
+    <span class="mu-title-large">Title Large</span>
+    <span class="mu-title-medium">Title Medium — <span class="mu-text-dim">with subtitle</span></span>
+    <div class="divider"></div>
+    <span class="mu-body-large">Body Large — the quick brown fox jumps over the lazy dog</span>
+    <span class="mu-body-medium mu-text-dim">Body Medium — supporting copy and descriptions</span>
+    <span class="mu-label-large">Label Large — BUTTONS AND CHIPS</span>
+    <span class="mu-label-small mu-text-dim">Label Small — CAPTIONS</span>
+  </div>
+</section>
+
+<!-- ═════════ BUTTONS ═════════ -->
+<section class="sec" id="buttons">
+  <h2 class="sec-title">Buttons</h2>
+  <p class="sec-sub">Scale on :active only. No border-radius flicker. Ripple on all. No persistent focus highlight.</p>
+  <div class="lbl">Standard</div>
+  <div class="row">
+    <button class="btn btn-filled">Filled</button>
+    <button class="btn btn-tonal">Tonal</button>
+    <button class="btn btn-elevated">Elevated</button>
+    <button class="btn btn-outlined">Outlined</button>
+    <button class="btn btn-text">Text</button>
+    <button class="btn btn-destructive">Destructive</button>
+    <button class="btn btn-destructive-outlined">Dest. Outlined</button>
+  </div>
+  <div class="lbl">Gradient (static, no moving animation)</div>
+  <div class="row">
+    <button class="btn btn-gradient-primary">Gradient Primary</button>
+    <button class="btn btn-gradient-secondary">Gradient Secondary</button>
+  </div>
+  <div class="lbl">Icon + FAB</div>
+  <div class="row" style="align-items:center">
+    <button class="btn btn-icon" title="More">⋯</button>
+    <button class="btn btn-icon-filled" title="Add">＋</button>
+    <button class="btn btn-fab">♡</button>
+    <button class="btn btn-fab-extended"><span>✎</span>Edit</button>
+  </div>
+  <div class="lbl">Disabled</div>
+  <div class="row">
+    <button class="btn btn-filled" disabled>Filled</button>
+    <button class="btn btn-outlined" disabled>Outlined</button>
+    <button class="btn btn-tonal" disabled>Tonal</button>
+  </div>
+</section>
+
+<!-- ═════════ CARDS ═════════ -->
+<section class="sec" id="cards">
+  <h2 class="sec-title">Cards</h2>
+  <div class="grid-3">
+    <div class="card card-elevated card-interactive">
+      <div class="demo-img"></div>
+      <div class="card-media-content">
+        <div class="card-header" style="margin-bottom:var(--space-2)">
+          <div class="card-avatar">M</div>
+          <div><div class="card-title">Elevated Card</div><div class="card-subtitle">Interactive · Hover me</div></div>
+        </div>
+        <div class="card-body">Spring lift on hover, sheen sweep, avatar scales.</div>
+        <div class="card-actions"><button class="btn btn-text btn-sm">Dismiss</button><button class="btn btn-tonal btn-sm">Action</button></div>
+      </div>
+    </div>
+    <div class="card card-filled">
+      <div class="card-title">Filled Card</div>
+      <div class="card-body" style="margin-top:var(--space-2)">Uses surface-container-highest. Quieter presence.</div>
+      <div class="card-actions"><button class="btn btn-text btn-sm">Learn more</button></div>
+    </div>
+    <div class="card card-outlined card-interactive" style="background:var(--color-primary-container)">
+      <div class="card-title" style="color:var(--color-on-primary-container)">Tinted surface</div>
+      <div class="card-body" style="margin-top:var(--space-2);color:var(--color-on-primary-container);opacity:.8">Primary container for expressive emphasis.</div>
+      <div class="card-actions"><button class="btn btn-filled btn-sm">Open</button></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ CHIPS ═════════ -->
+<section class="sec" id="chips">
+  <h2 class="sec-title">Chips</h2>
+  <div class="row">
+    <div class="chip chip-assist">✓ Assist</div>
+    <div class="chip chip-filter">🔥 Filter (tap)</div>
+    <div class="chip chip-filter chip-selected">★ Selected</div>
+    <div class="chip chip-suggestion">Suggestion</div>
+    <div class="chip chip-input">Input ✕</div>
+    <div class="chip chip-filter">Music</div>
+    <div class="chip chip-filter chip-selected">✓ Books</div>
+  </div>
+</section>
+
+<!-- ═════════ INPUTS ═════════ -->
+<section class="sec" id="inputs">
+  <h2 class="sec-title">Inputs</h2>
+  <p class="sec-sub">Rounded corners, outline-based focus (zero layout shift), search icon color transition.</p>
+  <div class="grid-2">
+    <div class="field">
+      <label class="field-label">Filled input</label>
+      <input class="input" type="text" placeholder="Type something…">
+      <span class="field-support">Supporting text</span>
+    </div>
+    <div class="field">
+      <label class="field-label">Outlined input</label>
+      <input class="input input-outlined" type="text" placeholder="Type something…">
+    </div>
+    <div class="field">
+      <label class="field-label">Search (rounded)</label>
+      <div class="input-search-wrap">
+        <span class="input-search-icon">🔍</span>
+        <input class="input input-search" type="search" placeholder="Search…">
+      </div>
+    </div>
+    <div class="field">
+      <label class="field-label">Error state</label>
+      <input class="input error-state" type="email" value="invalid@">
+      <span class="field-support error">Not a valid email</span>
+    </div>
+    <div class="field">
+      <label class="field-label">Textarea</label>
+      <textarea class="input input-outlined" rows="3" placeholder="Write something…"></textarea>
+    </div>
+    <div class="field">
+      <label class="field-label">Select</label>
+      <div class="select-wrap">
+        <select class="input input-outlined">
+          <option>Option Alpha</option><option>Option Beta</option><option>Option Gamma</option>
+        </select>
+        <span class="select-arrow">▾</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ CONTROLS ═════════ -->
+<section class="sec" id="controls">
+  <h2 class="sec-title">Selection Controls</h2>
+  <div class="demo-group">
+    <div class="preview-card">
+      <div class="lbl" style="margin-top:0">Switches (morphy)</div>
+      <div class="col" style="gap:var(--space-4)">
+        <label class="switch">
+          <input type="checkbox" checked>
+          <div class="switch-track"><div class="switch-thumb"></div></div>
+          <span class="switch-label">On</span>
+        </label>
+        <label class="switch">
+          <input type="checkbox">
+          <div class="switch-track"><div class="switch-thumb"></div></div>
+          <span class="switch-label">Off</span>
+        </label>
+      </div>
+    </div>
+    <div class="preview-card">
+      <div class="lbl" style="margin-top:0">Checkboxes</div>
+      <div class="col" style="gap:var(--space-4)">
+        <label class="checkbox"><input type="checkbox" checked><div class="checkbox-box"></div><span class="checkbox-label">Checked</span></label>
+        <label class="checkbox"><input type="checkbox"><div class="checkbox-box"></div><span class="checkbox-label">Unchecked</span></label>
+        <div class="checkbox indeterminate"><div class="checkbox-box"></div><span class="checkbox-label">Indeterminate</span></div>
+      </div>
+    </div>
+    <div class="preview-card">
+      <div class="lbl" style="margin-top:0">Radio</div>
+      <div class="col" style="gap:var(--space-4)">
+        <label class="radio"><input type="radio" name="r1" checked><div class="radio-dot"></div><span class="radio-label">Option A</span></label>
+        <label class="radio"><input type="radio" name="r1"><div class="radio-dot"></div><span class="radio-label">Option B</span></label>
+        <label class="radio"><input type="radio" name="r1"><div class="radio-dot"></div><span class="radio-label">Option C</span></label>
+      </div>
+    </div>
+    <div class="preview-card" style="flex:2;min-width:280px">
+      <div class="lbl" style="margin-top:0">Sliders (masked handle, no distort)</div>
+      <div class="col" style="gap:var(--space-6)">
+        <div class="slider-wrap">
+          <div class="slider-label-row"><span class="slider-label">Volume</span><span class="slider-value">70</span></div>
+          <input type="range" class="slider" min="0" max="100" value="70">
+        </div>
+        <div class="slider-wrap">
+          <div class="slider-label-row"><span class="slider-label">Brightness</span><span class="slider-value">40</span></div>
+          <input type="range" class="slider" min="0" max="100" value="40">
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ PROGRESS ═════════ -->
+<section class="sec" id="progress">
+  <h2 class="sec-title">Progress</h2>
+  <p class="sec-sub">No blob handles. Two-bar indeterminate. Circular: fixed arc rotates — no snap.</p>
+  <div class="demo-group">
+    <div style="flex:2;min-width:280px">
+      <div class="prog-stack">
+        <div><div class="prog-lbl">25%</div><div class="progress-bar"><div class="progress-bar-fill" style="width:25%"></div></div></div>
+        <div><div class="prog-lbl">65%</div><div class="progress-bar"><div class="progress-bar-fill" style="width:65%"></div></div></div>
+        <div><div class="prog-lbl">90%</div><div class="progress-bar"><div class="progress-bar-fill" style="width:90%"></div></div></div>
+        <div><div class="prog-lbl">Indeterminate</div><div class="progress-bar indeterminate"><div class="progress-bar-fill"></div></div></div>
+      </div>
+    </div>
+    <div class="preview-card">
+      <div class="prog-lbl">Circular</div>
+      <div class="row" style="gap:var(--space-5)">
+        <div id="cp1"></div>
+        <div id="cp2"></div>
+        <div id="cp3"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ NAVIGATION ═════════ -->
+<section class="sec" id="navigation">
+  <h2 class="sec-title">Navigation</h2>
+  <div class="lbl">Top App Bar</div>
+  <div class="top-app-bar" style="border-radius:var(--radius-xl);margin-bottom:var(--space-4)">
+    <button class="btn btn-icon">←</button>
+    <span class="top-app-bar-title">App Title</span>
+    <div class="top-app-bar-actions">
+      <button class="btn btn-icon">🔍</button>
+      <button class="btn btn-icon">⋮</button>
+    </div>
+  </div>
+  <div class="lbl">Glass Dock (sliding pill)</div>
+  <div style="display:flex;justify-content:center;margin-bottom:var(--space-5)">
+    <div class="nav-dock" id="nav-dock">
+      <div class="dock-indicator" id="dock-ind"></div>
+      <button class="dock-item active" onclick="setDockActive(this)"><span class="di">⌂</span><span>Home</span></button>
+      <button class="dock-item" onclick="setDockActive(this)"><span class="di">🔍</span><span>Search</span></button>
+      <button class="dock-item" onclick="setDockActive(this)"><span class="di">♡</span><span>Saved</span></button>
+      <button class="dock-item" onclick="setDockActive(this)"><span class="di">◯</span><span>Profile</span></button>
+    </div>
+  </div>
+  <div class="lbl">Tabs (sliding underline indicator)</div>
+  <div style="border-radius:var(--radius-xl);overflow:hidden;border:1px solid var(--color-outline-variant);margin-bottom:var(--space-5)">
+    <div class="tabs">
+      <button class="tab active" data-panel="tp1"><span class="tab-icon">🔍</span>Explore</button>
+      <button class="tab" data-panel="tp2"><span class="tab-icon">📚</span>Library</button>
+      <button class="tab" data-panel="tp3"><span class="tab-icon">⚙</span>Settings</button>
+    </div>
+    <div id="tp1" style="padding:var(--space-4);color:var(--color-on-surface-variant);font:var(--type-body-medium)">Explore content here.</div>
+    <div id="tp2" style="padding:var(--space-4);color:var(--color-on-surface-variant);font:var(--type-body-medium)" hidden>Library content here.</div>
+    <div id="tp3" style="padding:var(--space-4);color:var(--color-on-surface-variant);font:var(--type-body-medium)" hidden>Settings content here.</div>
+  </div>
+  <div class="lbl">Nav Drawer</div>
+  <div class="nav-drawer" style="min-height:auto">
+    <div class="nav-drawer-section-label">Main</div>
+    <div class="nav-drawer-item active">⌂ Home</div>
+    <div class="nav-drawer-item">🔍 Explore</div>
+    <div class="nav-drawer-item">📚 Library</div>
+    <div class="nav-drawer-section-label">Settings</div>
+    <div class="nav-drawer-item">⚙ Preferences</div>
+  </div>
+</section>
+
+<!-- ═════════ LISTS ═════════ -->
+<section class="sec" id="lists">
+  <h2 class="sec-title">Lists &amp; Menu</h2>
+  <p class="sec-sub">Clicked item expands height, siblings give space. Menu items indent on hover.</p>
+  <div class="grid-2">
+    <div class="list">
+      <div class="list-item"><span class="list-item-icon">🎵</span><div class="list-item-content"><div class="list-item-headline">Track title</div><div class="list-item-support">Artist · Album</div></div><span class="list-item-trailing">3:24</span></div>
+      <div class="list-item"><span class="list-item-icon">🎵</span><div class="list-item-content"><div class="list-item-headline">Another track</div><div class="list-item-support">Different artist</div></div><span class="list-item-trailing">4:01</span></div>
+      <div class="list-item"><span class="list-item-icon">🎵</span><div class="list-item-content"><div class="list-item-headline">Third item with long name</div><div class="list-item-support">Supporting text</div></div><span class="list-item-trailing">2:58</span></div>
+    </div>
+    <div class="menu" style="position:static;transform:none;opacity:1;pointer-events:all">
+      <div class="menu-item"><span class="menu-item-icon">✎</span>Edit</div>
+      <div class="menu-item"><span class="menu-item-icon">⎘</span>Duplicate</div>
+      <div class="menu-item"><span class="menu-item-icon">⬆</span>Export</div>
+      <div class="menu-divider"></div>
+      <div class="menu-item destructive"><span class="menu-item-icon">🗑</span>Delete</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ OVERLAYS ═════════ -->
+<section class="sec" id="overlays">
+  <h2 class="sec-title">Overlays</h2>
+  <div class="lbl">Accordion (grid-rows animation, smooth + masked)</div>
+  <div class="accordion max-480" style="margin-bottom:var(--space-5)">
+    <div class="accordion-item open">
+      <button class="accordion-trigger">What is MotionUI?<span class="accordion-arrow">▾</span></button>
+      <div class="accordion-body"><div class="accordion-body-inner"><div class="accordion-content">Load two files, get a full expressive component library with dynamic hue-based theming.</div></div></div>
+    </div>
+    <div class="accordion-item">
+      <button class="accordion-trigger">How does theming work?<span class="accordion-arrow">▾</span></button>
+      <div class="accordion-body"><div class="accordion-body-inner"><div class="accordion-content">MU.setHue(hue) regenerates the full oklch tonal palette with an animated arc transition.</div></div></div>
+    </div>
+    <div class="accordion-item">
+      <button class="accordion-trigger">Blur mode?<span class="accordion-arrow">▾</span></button>
+      <div class="accordion-body"><div class="accordion-body-inner"><div class="accordion-content">Toggle at top. Adds .blur-enabled to html, activating backdrop-filter via --_backdrop.</div></div></div>
+    </div>
+  </div>
+  <div class="lbl">Tooltips (immediate, spring)</div>
+  <div class="row" style="margin-bottom:var(--space-5)">
+    <div class="tooltip-wrap"><button class="btn btn-outlined">Hover me</button><span class="tooltip">Opens details panel</span></div>
+    <div class="tooltip-wrap"><button class="btn btn-icon">⚙</button><span class="tooltip">Settings</span></div>
+    <div class="tooltip-wrap"><button class="btn btn-icon">🔔</button><span class="tooltip">3 notifications</span></div>
+  </div>
+  <div class="lbl">Context Menu</div>
+  <div class="row" style="margin-bottom:var(--space-5)">
+    <div id="ctx-demo-area" style="width:100%;min-height:120px;border-radius:var(--radius-lg);border:2px dashed var(--color-outline-variant);display:flex;align-items:center;justify-content:center;color:var(--color-on-surface-variant);font:var(--type-body-medium);cursor:context-menu;user-select:none">
+      right-click anywhere here
+    </div>
+  </div>
+  <div class="row" style="margin-bottom:var(--space-5)">
+    <button class="btn btn-outlined" onclick="MU.contextMenu(event,[{icon:'📋',label:'Copy'},{icon:'✂️',label:'Cut'},{icon:'📌',label:'Paste'},{sep:true},{icon:'🗑',label:'Delete',destructive:true}])">Flat menu</button>
+    <button class="btn btn-outlined" onclick="MU.contextMenu(event,[{header:'Sort by'},{icon:'🔤',label:'Name'},{icon:'📅',label:'Date modified'},{icon:'📦',label:'Size'},{sep:true},{header:'View'},{icon:'▦',label:'Grid'},{icon:'☰',label:'List'}])">Headers + seps</button>
+    <button class="btn btn-outlined" onclick="MU.contextMenu(event,[{icon:'📁',label:'Open'},{icon:'✏️',label:'Rename'},{sep:true},{icon:'📤',label:'Share',items:[{icon:'🔗',label:'Copy link',fn:()=>MU.snackbar('Link copied')},{icon:'✉️',label:'Email',fn:()=>MU.snackbar('Email client opened')},{icon:'💬',label:'Message',fn:()=>MU.snackbar('Message sent')}]},{icon:'🏷',label:'Label',items:[{icon:'🔴',label:'Red',fn:()=>MU.snackbar('Labelled red')},{icon:'🟡',label:'Yellow',fn:()=>MU.snackbar('Labelled yellow')},{icon:'🟢',label:'Green',fn:()=>MU.snackbar('Labelled green')}]},{sep:true},{icon:'🗑',label:'Move to trash',destructive:true,fn:()=>MU.snackbar('Moved to trash')}])">With submenus</button>
+  </div>
+  <div class="lbl">JS API</div>
+  <div class="row">
+    <button class="btn btn-filled" onclick="MU.snackbar('Changes saved ✓')">Snackbar</button>
+    <button class="btn btn-filled" onclick="MU.snackbar('Item deleted',{action:'Undo',onAction:()=>MU.snackbar('Restored ✓',{duration:2000}),duration:5000})">Snackbar + Undo</button>
+    <button class="btn btn-tonal" onclick="MU.dialog({title:'About MotionUI',body:'A Material You–inspired design language with expressive motion and dynamic oklch theming.',actions:[{label:'Close',variant:'btn-text'}]})">Dialog</button>
+    <button class="btn btn-tonal" onclick="MU.dialog({icon:'🗑',title:'Delete item?',body:'This action cannot be undone.',actions:[{label:'Cancel',variant:'btn-text'},{label:'Delete',variant:'btn-destructive',fn:()=>MU.snackbar('Deleted')}]})">Confirm</button>
+    <button class="btn btn-elevated" onclick="MU.sheet({content:`<div style='font:var(--type-title-large);margin-bottom:var(--space-4)'>Options</div><div class='row'><button class='btn btn-tonal' style='flex:1'>Share</button><button class='btn btn-outlined' style='flex:1'>Export</button></div><p style='margin-top:var(--space-4);color:var(--color-on-surface-variant);font:var(--type-body-medium)'>Drag the handle to dismiss.</p>`})">Bottom Sheet</button>
+  </div>
+</section>
+<script>
+  document.getElementById('ctx-demo-area').addEventListener('contextmenu', e => {
+    e.preventDefault();
+    MU.contextMenu(e, [
+      { header: 'Actions' },
+      { icon: '📋', label: 'Copy', fn: () => MU.snackbar('Copied') },
+      { icon: '✂️', label: 'Cut',  fn: () => MU.snackbar('Cut') },
+      { icon: '📌', label: 'Paste', fn: () => MU.snackbar('Pasted') },
+      { sep: true },
+      { icon: '📤', label: 'Share', items: [
+        { icon: '🔗', label: 'Copy link', fn: () => MU.snackbar('Link copied') },
+        { icon: '✉️', label: 'Email',     fn: () => MU.snackbar('Opening mail…') },
+        { icon: '💬', label: 'Message',   fn: () => MU.snackbar('Message sent') },
+      ]},
+      { icon: '🏷', label: 'Label', items: [
+        { icon: '🔴', label: 'Red',    fn: () => MU.snackbar('Labelled red') },
+        { icon: '🟡', label: 'Yellow', fn: () => MU.snackbar('Labelled yellow') },
+        { icon: '🟢', label: 'Green',  fn: () => MU.snackbar('Labelled green') },
+      ]},
+      { sep: true },
+      { icon: '🗑', label: 'Delete', destructive: true, fn: () => MU.snackbar('Deleted') },
+    ]);
+  });
+</script>
+
+<!-- ═════════ FEEDBACK ═════════ -->
+<section class="sec" id="feedback">
+  <h2 class="sec-title">Feedback</h2>
+  <div class="lbl">Banners (icon vertically centered to container)</div>
+  <div class="col max-480" style="gap:var(--space-3);margin-bottom:var(--space-5)">
+    <div class="banner banner-info"><span class="banner-icon">ℹ️</span><div class="banner-content"><div class="banner-title">Info</div>Settings updated.</div></div>
+    <div class="banner banner-success"><span class="banner-icon">✅</span><div class="banner-content"><div class="banner-title">Success</div>Export completed.</div></div>
+    <div class="banner banner-warning"><span class="banner-icon">⚠️</span><div class="banner-content"><div class="banner-title">Warning</div>Storage 85% full.</div></div>
+    <div class="banner banner-error"><span class="banner-icon">❌</span><div class="banner-content"><div class="banner-title">Error</div>Connection failed.</div></div>
+  </div>
+  <div class="lbl">Badges &amp; Avatars</div>
+  <div class="row" style="align-items:center">
+    <div class="badge">3</div>
+    <div class="badge">99+</div>
+    <div class="badge-wrap"><button class="btn btn-icon">🔔</button><div class="badge badge-dot"></div></div>
+    <div class="badge-wrap"><button class="btn btn-icon">✉</button><div class="badge">12</div></div>
+    <div class="avatar avatar-sm">T</div>
+    <div class="avatar avatar-md">MU</div>
+    <div class="avatar avatar-lg" style="background:var(--color-secondary-container);color:var(--color-on-secondary-container)">AE</div>
+    <div class="avatar-group">
+      <div class="avatar avatar-md">A</div>
+      <div class="avatar avatar-md" style="background:var(--color-secondary-container)">B</div>
+      <div class="avatar avatar-md" style="background:var(--color-tertiary-container)">C</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ SKELETONS ═════════ -->
+<section class="sec" id="skeletons">
+  <h2 class="sec-title">Skeletons</h2>
+  <div class="grid-2">
+    <div style="display:flex;flex-direction:column;gap:var(--space-3);padding:var(--space-4);background:var(--color-surface-container-low);border-radius:var(--radius-xl)">
+      <div style="display:flex;gap:var(--space-3);align-items:center">
+        <div class="skeleton skeleton-circle" style="width:44px;height:44px;flex-shrink:0"></div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:8px">
+          <div class="skeleton skeleton-text" style="width:60%"></div>
+          <div class="skeleton skeleton-text" style="width:40%;height:.75em"></div>
+        </div>
+      </div>
+      <div class="skeleton skeleton-text"></div>
+      <div class="skeleton skeleton-text" style="width:80%"></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:var(--space-3);padding:var(--space-4);background:var(--color-surface-container-low);border-radius:var(--radius-xl)">
+      <div class="skeleton skeleton-card"></div>
+      <div class="skeleton skeleton-text" style="width:55%"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ WAVE PROGRESS ═════════ -->
+<section class="sec" id="waveprogress">
+  <h2 class="sec-title">Wave Progress</h2>
+  <p class="sec-sub">Expressive wavy line progress bars — both linear and circular. Continuously animated wave phase, live-tunable amplitude and frequency, determinate and indeterminate modes.</p>
+
+  <div class="wave-layout">
+
+    <!-- left: previews -->
+    <div class="wave-previews">
+
+      <!-- linear bar -->
+      <div class="wave-panel">
+        <div class="wave-panel-title">Linear — Determinate</div>
+        <div id="wv-linear-main" style="width:100%"></div>
+        <div style="display:flex;gap:var(--space-3);margin-top:var(--space-1)">
+          <button class="btn btn-tonal btn-sm" onclick="wvSetVal(25)">25%</button>
+          <button class="btn btn-tonal btn-sm" onclick="wvSetVal(50)">50%</button>
+          <button class="btn btn-tonal btn-sm" onclick="wvSetVal(75)">75%</button>
+          <button class="btn btn-tonal btn-sm" onclick="wvSetVal(100)">100%</button>
+          <button class="btn btn-outlined btn-sm" onclick="wvSetVal(null)">Indeterminate</button>
+        </div>
+      </div>
+
+      <!-- linear colors -->
+      <div class="wave-panel">
+        <div class="wave-panel-title">Color Roles</div>
+        <div id="wv-col-primary" style="width:100%"></div>
+        <div id="wv-col-secondary" style="width:100%"></div>
+        <div id="wv-col-tertiary" style="width:100%"></div>
+        <div id="wv-col-error" style="width:100%"></div>
+      </div>
+
+      <!-- linear indeterminate -->
+      <div class="wave-panel">
+        <div class="wave-panel-title">Linear — Indeterminate</div>
+        <div id="wv-indet" style="width:100%"></div>
+      </div>
+
+      <!-- circular row -->
+      <div class="wave-panel">
+        <div class="wave-panel-title">Circular — Determinate</div>
+        <div class="wave-circular-row">
+          <div class="wave-circ-item"><div id="wv-circ-main"></div><div class="wave-circ-lbl">Primary</div></div>
+          <div class="wave-circ-item"><div id="wv-circ-sec"></div><div class="wave-circ-lbl">Secondary</div></div>
+          <div class="wave-circ-item"><div id="wv-circ-tert"></div><div class="wave-circ-lbl">Tertiary</div></div>
+          <div class="wave-circ-item"><div id="wv-circ-calm"></div><div class="wave-circ-lbl">Calm wave</div></div>
+          <div class="wave-circ-item"><div id="wv-circ-indet"></div><div class="wave-circ-lbl">Indeterminate</div></div>
+        </div>
+      </div>
+
+      <!-- real-world use cases -->
+      <div class="lbl" style="margin-top:0">Use-case demos</div>
+      <div class="wave-app-demos">
+
+        <!-- audio level card -->
+        <div class="wave-app-card">
+          <div class="wave-app-card-title">🎵 Audio Level</div>
+          <div id="wv-audio"></div>
+          <div class="wave-app-card-sub">High amplitude, fast speed — expressive energy meter</div>
+        </div>
+
+        <!-- download card -->
+        <div class="wave-app-card">
+          <div class="wave-app-card-title">⬇ Download</div>
+          <div id="wv-download"></div>
+          <div class="wave-app-card-sub">Calm wave, slow speed — background transfer feel</div>
+          <button class="btn btn-tonal btn-sm" onclick="wvSimDownload()" id="wv-dl-btn">Simulate</button>
+        </div>
+
+        <!-- battery circular -->
+        <div class="wave-app-card">
+          <div style="display:flex;align-items:center;gap:var(--space-4)">
+            <div id="wv-battery"></div>
+            <div>
+              <div class="wave-app-card-title">🔋 Battery</div>
+              <div class="wave-value-display" id="wv-battery-pct">72<span>percent</span></div>
+            </div>
+          </div>
+          <div class="wave-app-card-sub">Circular wavy — charge ring with live value</div>
+          <input type="range" class="slider" min="0" max="100" value="72" oninput="wvBatteryUpdate(+this.value)">
+        </div>
+
+        <!-- skill radar / stat -->
+        <div class="wave-app-card">
+          <div class="wave-app-card-title">✦ Multi-stat</div>
+          <div style="display:flex;gap:var(--space-4);align-items:center;justify-content:center">
+            <div class="wave-circ-item"><div id="wv-stat-a"></div><div class="wave-circ-lbl">Speed</div></div>
+            <div class="wave-circ-item"><div id="wv-stat-b"></div><div class="wave-circ-lbl">Power</div></div>
+            <div class="wave-circ-item"><div id="wv-stat-c"></div><div class="wave-circ-lbl">Stamina</div></div>
+          </div>
+          <div class="wave-app-card-sub">Different frequencies per stat — distinct visual identity</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- right: controls -->
+    <div class="wave-ctrl-panel">
+      <div class="wave-ctrl-title">Live Controls</div>
+      <div style="font:400 11px/1.4 var(--font-sans);color:var(--color-on-surface-variant)">Tweaks the main linear bar and circular preview.</div>
+
+      <div class="wave-ctrl-row">
+        <div class="wave-ctrl-lbl">Value<span class="wave-ctrl-val" id="wvctrl-val-lbl">65%</span></div>
+        <input type="range" class="slider" min="0" max="100" value="65" id="wvctrl-val" oninput="wvCtrlUpdate()">
+      </div>
+      <div class="wave-ctrl-row">
+        <div class="wave-ctrl-lbl">Amplitude<span class="wave-ctrl-val" id="wvctrl-amp-lbl">5px</span></div>
+        <input type="range" class="slider" min="1" max="20" value="5" id="wvctrl-amp" oninput="wvCtrlUpdate()">
+      </div>
+      <div class="wave-ctrl-row">
+        <div class="wave-ctrl-lbl">Frequency<span class="wave-ctrl-val" id="wvctrl-freq-lbl">3</span></div>
+        <input type="range" class="slider" min="0.5" max="12" step="0.5" value="3" id="wvctrl-freq" oninput="wvCtrlUpdate()">
+      </div>
+      <div class="wave-ctrl-row">
+        <div class="wave-ctrl-lbl">Stroke Width<span class="wave-ctrl-val" id="wvctrl-sw-lbl">3px</span></div>
+        <input type="range" class="slider" min="1" max="10" value="3" id="wvctrl-sw" oninput="wvCtrlRebuild()">
+      </div>
+      <div class="wave-ctrl-row">
+        <div class="wave-ctrl-lbl">Anim Speed<span class="wave-ctrl-val" id="wvctrl-speed-lbl">3</span></div>
+        <input type="range" class="slider" min="0" max="12" step="0.5" value="3" id="wvctrl-speed" oninput="wvCtrlUpdate()">
+      </div>
+
+      <div class="wave-ctrl-lbl" style="margin-top:var(--space-1)">Color</div>
+      <div class="wave-color-row">
+        <div class="chip chip-filter chip-selected" id="wvcol-primary"   onclick="wvSetColor('primary',this)">Primary</div>
+        <div class="chip chip-filter"               id="wvcol-secondary" onclick="wvSetColor('secondary',this)">Secondary</div>
+        <div class="chip chip-filter"               id="wvcol-tertiary"  onclick="wvSetColor('tertiary',this)">Tertiary</div>
+        <div class="chip chip-filter"               id="wvcol-error"     onclick="wvSetColor('error',this)">Error</div>
+      </div>
+
+      <div class="wave-ctrl-lbl" style="margin-top:var(--space-1)">Presets</div>
+      <div style="display:flex;gap:var(--space-2);flex-wrap:wrap">
+        <button class="btn btn-tonal btn-sm" onclick="wvPreset('calm')">Calm</button>
+        <button class="btn btn-tonal btn-sm" onclick="wvPreset('energetic')">Energetic</button>
+        <button class="btn btn-tonal btn-sm" onclick="wvPreset('tight')">Tight</button>
+        <button class="btn btn-tonal btn-sm" onclick="wvPreset('bold')">Bold</button>
+        <button class="btn btn-tonal btn-sm" onclick="wvPreset('flat')">Flat</button>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═════════ METABALL ═════════ -->
+<section class="sec" id="metaball">
+  <h2 class="sec-title">Metaball</h2>
+  <p class="sec-sub">WebGL SDF metaballs — true transparency, per-blob color, crisp edges. No background matching needed. All demos are interactive.</p>
+
+  <!-- ── DEMO 1: Nav bar that extrudes a liquid menu ── -->
+  <div class="lbl" style="margin-top:0">Nav bar → liquid menu</div>
+  <div class="mb-bar-demo" id="mb-nav-demo" onclick="mbNavToggle()" style="position:relative;overflow:hidden;border-radius:var(--radius-xl);height:180px;background:var(--color-surface-container);border:1px solid var(--color-outline-variant);cursor:pointer;user-select:none;margin-bottom:var(--space-4);">
+    <canvas id="mb-nav-canvas"></canvas>
+    <!-- bar label -->
+    <div class="mb-bar-label" id="mb-nav-bar-lbl" style="top:38px;left:50%;transform:translate(-50%,-50%)">⌂ &nbsp; 🔍 &nbsp; ♡ &nbsp; ◎</div>
+    <!-- menu item labels, shown when open -->
+    <div class="mb-menu-label" id="mb-nav-m1" style="opacity:0;top:115px;left:calc(50% - 120px);transform:translateX(-50%)">Home</div>
+    <div class="mb-menu-label" id="mb-nav-m2" style="opacity:0;top:115px;left:calc(50% - 40px);transform:translateX(-50%)">Search</div>
+    <div class="mb-menu-label" id="mb-nav-m3" style="opacity:0;top:115px;left:calc(50% + 40px);transform:translateX(-50%)">Saved</div>
+    <div class="mb-menu-label" id="mb-nav-m4" style="opacity:0;top:115px;left:calc(50% + 120px);transform:translateX(-50%)">Profile</div>
+    <div class="mb-hint">click to open / close menu</div>
+  </div>
+
+  <div class="mb-demos">
+
+    <!-- ── DEMO 2: Radial split — one blob → 4 colored actions ── -->
+    <div>
+      <div class="lbl" style="margin-top:0">Radial split</div>
+      <div class="mb-demo" id="mb-radial-demo" onclick="mbRadialToggle()">
+        <canvas id="mb-radial-canvas"></canvas>
+        <div class="mb-label" id="mb-rad-center" style="top:50%;left:50%;transform:translate(-50%,-50%)">＋ New</div>
+        <div class="mb-label" id="mb-rad-l1" style="opacity:0;top:28%;left:50%;transform:translate(-50%,-50%)">📄 Doc</div>
+        <div class="mb-label" id="mb-rad-l2" style="opacity:0;top:50%;left:75%;transform:translate(-50%,-50%)">🖼 Image</div>
+        <div class="mb-label" id="mb-rad-l3" style="opacity:0;top:72%;left:50%;transform:translate(-50%,-50%)">🔗 Link</div>
+        <div class="mb-label" id="mb-rad-l4" style="opacity:0;top:50%;left:25%;transform:translate(-50%,-50%)">📁 Folder</div>
+        <div class="mb-hint">click to expand / collapse</div>
+      </div>
+    </div>
+
+    <!-- ── DEMO 3: Cursor attract / repel ── -->
+    <div>
+      <div class="lbl" style="margin-top:0">Cursor attract</div>
+      <div class="mb-demo" id="mb-cursor-demo">
+        <canvas id="mb-cursor-canvas"></canvas>
+        <div class="mb-hint">move mouse over</div>
+      </div>
+    </div>
+
+    <!-- ── DEMO 4: Breathing / idle morphing loader ── -->
+    <div>
+      <div class="lbl" style="margin-top:0">Liquid loader</div>
+      <div class="mb-demo" id="mb-loader-demo">
+        <canvas id="mb-loader-canvas"></canvas>
+        <div class="mb-label" id="mb-loader-lbl" style="top:50%;left:50%;transform:translate(-50%,-50%);opacity:0.7;font-size:10px;letter-spacing:.08em;text-transform:uppercase">loading</div>
+        <div class="mb-hint">auto-animated</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- CSS loaders -->
+  <div class="lbl">CSS Blob Loaders</div>
+  <div class="loader-row">
+    <div class="loader-item">
+      <div class="blob-loader-scene"><div class="blob" style="background:var(--color-primary)"></div><div class="blob" style="background:var(--color-primary)"></div></div>
+      <span class="loader-lbl">2-blob</span>
+    </div>
+    <div class="loader-item">
+      <div class="blob-loader-3-scene"><div class="blob" style="background:var(--color-primary)"></div><div class="blob" style="background:var(--color-primary)"></div><div class="blob" style="background:var(--color-primary)"></div></div>
+      <span class="loader-lbl">3-blob</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════ SPIKY CIRCLE ═════════ -->
+<section class="sec" id="spiky">
+  <h2 class="sec-title">Spiky Circle</h2>
+  <p class="sec-sub">Live path generator — tweak every parameter, see the SVG update in real time. Grab the preset buttons to jump to archetypes.</p>
+
+  <div style="display:flex;gap:var(--space-6);align-items:flex-start;flex-wrap:wrap">
+
+    <!-- SVG preview -->
+    <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:var(--space-3)">
+      <div id="spiky-canvas" style="
+        width:260px;height:260px;
+        background:var(--color-surface-container);
+        border:1px solid var(--color-outline-variant);
+        border-radius:var(--radius-xl);
+        display:flex;align-items:center;justify-content:center;
+        position:relative;overflow:hidden;
+      ">
+        <svg id="spiky-svg" viewBox="0 0 24 24" width="220" height="220" xmlns="http://www.w3.org/2000/svg">
+          <path id="spiky-path"
+            fill="var(--color-primary)"
+            stroke="var(--color-on-primary)"
+            stroke-width="0.08"
+          />
+        </svg>
+        <!-- fill-rule toggle indicator -->
+        <div id="spiky-fillrule-badge" style="
+          position:absolute;bottom:var(--space-2);right:var(--space-2);
+          font:600 9px/1 var(--font-sans);color:var(--color-on-surface-variant);
+          opacity:0.5;letter-spacing:0.06em;
+        ">evenodd</div>
+      </div>
+
+      <!-- Color row -->
+      <div style="display:flex;gap:var(--space-2);align-items:center;flex-wrap:wrap;justify-content:center">
+        <button class="chip chip-filter chip-selected" id="sc-col-primary" onclick="setSpikyColor('primary',this)">Primary</button>
+        <button class="chip chip-filter" id="sc-col-secondary" onclick="setSpikyColor('secondary',this)">Secondary</button>
+        <button class="chip chip-filter" id="sc-col-tertiary" onclick="setSpikyColor('tertiary',this)">Tertiary</button>
+        <button class="chip chip-filter" id="sc-col-gradient" onclick="setSpikyColor('gradient',this)">Gradient</button>
+      </div>
+
+      <!-- Copy path button -->
+      <button class="btn btn-outlined btn-sm" onclick="copySpiky()" style="width:100%;max-width:200px">Copy SVG path</button>
+      <div id="spiky-copied" style="font:500 10px/1 var(--font-sans);color:var(--color-primary);opacity:0;transition:opacity 300ms">Copied ✓</div>
+    </div>
+
+    <!-- Controls -->
+    <div style="flex:1;min-width:280px;display:flex;flex-direction:column;gap:var(--space-5)">
+
+      <!-- Presets -->
+      <div>
+        <div class="lbl" style="margin-top:0">Presets</div>
+        <div class="row" style="flex-wrap:wrap">
+          <button class="btn btn-tonal btn-sm" onclick="applyPreset('gear')">⚙ Gear</button>
+          <button class="btn btn-tonal btn-sm" onclick="applyPreset('star')">★ Star</button>
+          <button class="btn btn-tonal btn-sm" onclick="applyPreset('sun')">☀ Sun</button>
+          <button class="btn btn-tonal btn-sm" onclick="applyPreset('badge')">◈ Badge</button>
+          <button class="btn btn-tonal btn-sm" onclick="applyPreset('blob')">● Blob</button>
+          <button class="btn btn-tonal btn-sm" onclick="applyPreset('ring')">○ Ring</button>
+          <button class="btn btn-tonal btn-sm" onclick="applyPreset('sharp')">✦ Sharp</button>
+          <button class="btn btn-tonal btn-sm" onclick="applyPreset('donut')">⊙ Donut</button>
+        </div>
+      </div>
+
+      <!-- Sliders -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-4) var(--space-6)">
+
+        <div class="slider-wrap">
+          <div class="slider-label-row"><span class="slider-label">cx</span><span class="slider-value" id="sv-cx">12</span></div>
+          <input type="range" class="slider" id="sl-cx" min="0" max="24" step="0.5" value="12">
+        </div>
+        <div class="slider-wrap">
+          <div class="slider-label-row"><span class="slider-label">cy</span><span class="slider-value" id="sv-cy">12</span></div>
+          <input type="range" class="slider" id="sl-cy" min="0" max="24" step="0.5" value="12">
+        </div>
+
+        <div class="slider-wrap">
+          <div class="slider-label-row"><span class="slider-label">outerR</span><span class="slider-value" id="sv-outerR">12</span></div>
+          <input type="range" class="slider" id="sl-outerR" min="1" max="18" step="0.25" value="12">
+        </div>
+        <div class="slider-wrap">
+          <div class="slider-label-row"><span class="slider-label">innerR</span><span class="slider-value" id="sv-innerR">6</span></div>
+          <input type="range" class="slider" id="sl-innerR" min="0.5" max="17" step="0.25" value="6">
+        </div>
+
+        <div class="slider-wrap">
+          <div class="slider-label-row"><span class="slider-label">spikes</span><span class="slider-value" id="sv-spikes">8</span></div>
+          <input type="range" class="slider" id="sl-spikes" min="2" max="32" step="1" value="8">
+        </div>
+        <div class="slider-wrap">
+          <div class="slider-label-row"><span class="slider-label">smooth</span><span class="slider-value" id="sv-smooth">1.0</span></div>
+          <input type="range" class="slider" id="sl-smooth" min="0" max="1" step="0.01" value="1">
+        </div>
+
+        <div class="slider-wrap" style="grid-column:1/-1">
+          <div class="slider-label-row">
+            <span class="slider-label">holeR</span>
+            <span class="slider-value" id="sv-holeR">4</span>
+            <label style="display:flex;align-items:center;gap:var(--space-1);cursor:pointer;margin-left:auto">
+              <input type="checkbox" id="sl-hole-en" checked onchange="updateSpiky()">
+              <span style="font:500 10px/1 var(--font-sans);color:var(--color-on-surface-variant)">enable</span>
+            </label>
+          </div>
+          <input type="range" class="slider" id="sl-holeR" min="0" max="11" step="0.25" value="4">
+        </div>
+
+      </div>
+
+      <!-- Fill rule toggle -->
+      <div style="display:flex;align-items:center;gap:var(--space-3)">
+        <span style="font:500 11px/1 var(--font-sans);color:var(--color-on-surface-variant)">fill-rule:</span>
+        <div class="segmented">
+          <button class="segmented-btn active" id="fr-evenodd" onclick="setFillRule('evenodd',this)">evenodd</button>
+          <button class="segmented-btn" id="fr-nonzero" onclick="setFillRule('nonzero',this)">nonzero</button>
+        </div>
+        <span id="spiky-fillrule-note" style="font:400 10px/1.4 var(--font-sans);color:var(--color-on-surface-variant);opacity:0.55">controls hole cutout</span>
+      </div>
+
+      <!-- Live stats -->
+      <div style="
+        background:var(--color-surface-container);
+        border:1px solid var(--color-outline-variant);
+        border-radius:var(--radius-lg);
+        padding:var(--space-3) var(--space-4);
+        font:500 10px/1.8 var(--font-mono,'Courier New',monospace);
+        color:var(--color-on-surface-variant);
+      " id="spiky-stats"></div>
+
+    </div>
+  </div>
+
+  <!-- Tiled showcase -->
+  <div class="lbl" style="margin-top:var(--space-8)">Shape Explorer — all spikes × smooth combinations</div>
+  <div id="spiky-grid" style="display:flex;flex-wrap:wrap;gap:var(--space-3);margin-top:var(--space-2)"></div>
+</section>
+
+</main>
+</div><!-- /canvas -->
+
+<script src="motionui.js"></script>
+<script>
+/* ─── Hue slider ─── */
+const hueSlider = document.getElementById('hue-slider');
+const hueVal    = document.getElementById('hue-val');
+const hueDot    = document.getElementById('hue-dot');
+const blurTog   = document.getElementById('blur-toggle');
+
+const satSlider = document.getElementById('sat-slider');
+const satVal    = document.getElementById('sat-val');
+const briSlider = document.getElementById('bri-slider');
+const briVal    = document.getElementById('bri-val');
+
+function updateSatSliderBg(h, bv) {
+  // left stop: greyed out at current hue, right stop: vivid
+  const briPct = Math.min(94, 70 * bv).toFixed(1);
+  satSlider.style.background = `linear-gradient(to right, hsl(${h},0%,${briPct}%), oklch(${briPct}% 0.22 ${h}))`;
+}
+function updateBriSliderBg(h) {
+  briSlider.style.background = `linear-gradient(to right, oklch(20% 0.06 ${h}), oklch(72% 0.16 ${h}), oklch(94% 0.10 ${h}))`;
+}
+
+hueSlider.addEventListener('input', () => {
+  const h  = +hueSlider.value;
+  const bv = MU.currentBri;
+  MU.setHue(h, false);
+  hueVal.textContent = h + '°';
+  hueDot.style.background = `oklch(${Math.min(94, 70 * bv).toFixed(1)}% 0.18 ${h})`;
+  updateSatSliderBg(h, bv);
+  updateBriSliderBg(h);
+  // update blob colors after hue change
+  document.querySelectorAll('.mb-blob, .blob-loader-scene .blob, .blob-loader-3-scene .blob').forEach(b => {
+    b.style.background = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim();
+  });
+  initDemos();
+});
+
+satSlider.addEventListener('input', () => {
+  const sv = +satSlider.value;
+  MU.setSat(sv);
+  satVal.textContent = sv;
+  updateSatSliderBg(MU.currentHue, MU.currentBri);
+  document.querySelectorAll('.mb-blob, .blob-loader-scene .blob, .blob-loader-3-scene .blob').forEach(b => {
+    b.style.background = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim();
+  });
+});
+
+briSlider.addEventListener('input', () => {
+  const bv = +briSlider.value / 100;
+  MU.setBri(bv);
+  briVal.textContent = briSlider.value + '%';
+  const h = MU.currentHue;
+  hueDot.style.background = `oklch(${Math.min(94, 70 * bv).toFixed(1)}% 0.18 ${h})`;
+  updateSatSliderBg(h, bv);
+  document.querySelectorAll('.mb-blob, .blob-loader-scene .blob, .blob-loader-3-scene .blob').forEach(b => {
+    b.style.background = getComputedStyle(document.documentElement).getPropertyValue('--color-primary').trim();
+  });
+});
+
+const designSelect = document.getElementById('design-select');
+MU.designs().forEach(({ id, label }) => {
+  const opt = document.createElement('option');
+  opt.value = id;
+  opt.textContent = label;
+  designSelect.appendChild(opt);
+});
+designSelect.addEventListener('change', e => MU.setDesign(e.target.value));
+blurTog.addEventListener('change', e => MU.setBlur(e.target.checked));
+hueDot.style.background = 'oklch(70% 0.18 250)';
+updateSatSliderBg(250, 1.0);
+updateBriSliderBg(250);
+
+/* ─── Circular progress ─── */
+MU.circularProgress(document.getElementById('cp1'), { value: 72, size: 52, stroke: 5 });
+MU.circularProgress(document.getElementById('cp2'), { value: 35, size: 52, stroke: 5 });
+MU.circularProgress(document.getElementById('cp3'), { size: 52, stroke: 5 });
+
+/* ─── Glass dock ─── */
+function positionDockInd(item) {
+  const dock = document.getElementById('nav-dock');
+  const ind  = document.getElementById('dock-ind');
+  const dr   = dock.getBoundingClientRect();
+  const ir   = item.getBoundingClientRect();
+  ind.style.cssText = `left:${ir.left-dr.left-2}px;top:${ir.top-dr.top-2}px;width:${ir.width+4}px;height:${ir.height+4}px;`;
+}
+function setDockActive(el) {
+  el.closest('.nav-dock').querySelectorAll('.dock-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+  positionDockInd(el);
+}
+window.addEventListener('load', () => {
+  const a = document.querySelector('.dock-item.active');
+  if (a) { document.getElementById('dock-ind').style.transition = 'none'; positionDockInd(a); requestAnimationFrame(() => { document.getElementById('dock-ind').style.transition = ''; }); }
+});
+window.addEventListener('resize', () => { const a = document.querySelector('.dock-item.active'); if (a) positionDockInd(a); });
+
+/* ─── Sidebar scroll highlight ─── */
+const io = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      const id = e.target.id;
+      document.querySelectorAll('.sidebar a').forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + id));
+    }
+  });
+}, { threshold: 0.2, root: document.querySelector('.main') });
+document.querySelectorAll('.sec').forEach(s => io.observe(s));
+document.querySelectorAll('.sidebar a').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    document.querySelector(a.getAttribute('href'))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+});
+
+/* ══════════════════════════════════════
+   WEBGL METABALL DEMOS
+   ══════════════════════════════════════ */
+
+// spring stepper: returns [newPos, newVel]
+function sp(pos, target, vel, k = 180, d = 18) {
+  const dt = 1/60;
+  const f  = -k * (pos - target) - d * vel;
+  vel += f * dt; pos += vel * dt;
+  return [pos, vel];
+}
+
+function getCSSColor(varName) {
+  return getComputedStyle(document.documentElement).getPropertyValue(varName).trim();
+}
+
+/* ══════════════════════════════════════════════════════
+   DEMO 1: Nav bar liquid menu
+   Bar blob sits at top. Click → 4 menu blobs
+   extrude downward through a connecting tendril,
+   detach into a horizontal row, then merge back.
+   ══════════════════════════════════════════════════════ */
+let mbNav = null, mbNavOpen = false;
+let mbNavBlobs = [];
+let mbNavTargets = [];
+let mbNavVels = [];
+
+function mbNavInit() {
+  const canvas = document.getElementById('mb-nav-canvas');
+  const w = canvas.clientWidth || 600;
+  const h = canvas.clientHeight || 260;
+  const cx = w / 2;
+  const barY = 44;
+  const primary = getCSSColor('--color-primary');
+
+  // blob layout:
+  // [0] bar-left  [1] bar-right   — two overlapping wide blobs forming the bar pill
+  // [2..5]        — the 4 menu item blobs (start merged into bar)
+  mbNavBlobs = [
+    { x: cx - 70, y: barY, r: 38, color: primary },
+    { x: cx + 70, y: barY, r: 38, color: primary },
+    { x: cx,      y: barY, r: 0,  color: primary },
+    { x: cx,      y: barY, r: 0,  color: primary },
+    { x: cx,      y: barY, r: 0,  color: primary },
+    { x: cx,      y: barY, r: 0,  color: primary },
+  ];
+  mbNavTargets = mbNavBlobs.map(b => ({ x: b.x, y: b.y, r: b.r }));
+  mbNavVels    = mbNavBlobs.map(() => ({ x: 0, y: 0, r: 0 }));
+
+  if (mbNav) mbNav.destroy();
+  mbNav = MU.metaball(canvas, mbNavBlobs, { threshold: 0.46, smooth: 2.2, animate: false });
+
+  function loop() {
+    let any = false;
+    mbNavBlobs.forEach((b, i) => {
+      const t = mbNavTargets[i], v = mbNavVels[i];
+      const [nx, nvx] = sp(b.x, t.x, v.x);
+      const [ny, nvy] = sp(b.y, t.y, v.y, 160, 16);
+      const [nr, nvr] = sp(b.r, t.r, v.r, 200, 22);
+      if (Math.abs(nx-b.x)>.04||Math.abs(ny-b.y)>.04||Math.abs(nr-b.r)>.04) any=true;
+      b.x=nx; b.y=ny; b.r=Math.max(0,nr);
+      v.x=nvx; v.y=nvy; v.r=nvr;
+    });
+    mbNav.update(mbNavBlobs);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+}
+
+window.mbNavToggle = function() {
+  mbNavOpen = !mbNavOpen;
+  const canvas = document.getElementById('mb-nav-canvas');
+  const w = canvas.clientWidth || 600;
+  const h = canvas.clientHeight || 260;
+  const cx = w / 2;
+  const barY = 44;
+  const menuY = 148;
+  const spacing = 80;
+  const primary = getCSSColor('--color-primary');
+  const labels = ['mb-nav-m1','mb-nav-m2','mb-nav-m3','mb-nav-m4'];
+
+  if (mbNavOpen) {
+    // bar stays, menu blobs drop down from bar center then spread
+    // phase 1: all 4 emerge as one blob from bar center, pulling downward
+    // we stagger targets — items appear sequentially by setting r with delay
+    mbNavTargets[0] = { x: cx-70, y: barY, r: 38 };
+    mbNavTargets[1] = { x: cx+70, y: barY, r: 38 };
+
+    const xs = [cx - 1.5*spacing, cx - 0.5*spacing, cx + 0.5*spacing, cx + 1.5*spacing];
+    [2,3,4,5].forEach((bi, i) => {
+      mbNavBlobs[bi].color = primary;
+      // start from bar center before spreading
+      mbNavBlobs[bi].x = cx; mbNavBlobs[bi].y = barY; mbNavBlobs[bi].r = 2;
+      mbNavVels[bi] = { x: 0, y: 0, r: 0 };
+      setTimeout(() => {
+        mbNavTargets[bi] = { x: xs[i], y: menuY, r: 40 };
+      }, i * 60);
+    });
+
+    document.getElementById('mb-nav-bar-lbl').style.opacity = '0.4';
+    setTimeout(() => {
+      labels.forEach(id => {
+        const el = document.getElementById(id);
+        el.style.opacity = '1';
+        el.style.transform = el.style.transform.replace('translateY(10px)','') + ' translateY(0)';
+      });
+    }, 380);
+
+  } else {
+    // collapse: labels fade, items spring back into bar
+    labels.forEach(id => {
+      document.getElementById(id).style.opacity = '0';
+    });
+    const xs = [cx - 1.5*spacing, cx - 0.5*spacing, cx + 0.5*spacing, cx + 1.5*spacing];
+    [2,3,4,5].forEach((bi, i) => {
+      setTimeout(() => {
+        mbNavTargets[bi] = { x: cx, y: barY, r: 0 };
+      }, i * 40);
+    });
+    mbNavTargets[0] = { x: cx-70, y: barY, r: 38 };
+    mbNavTargets[1] = { x: cx+70, y: barY, r: 38 };
+    document.getElementById('mb-nav-bar-lbl').style.opacity = '1';
+  }
+};
+
+/* ══════════════════════════════════════════════════════
+   DEMO 2: Radial split — FAB → 4 colored action blobs
+   ══════════════════════════════════════════════════════ */
+let mbRadial = null, mbRadialOpen = false;
+let mbRadBlobs = [], mbRadTargets = [], mbRadVels = [];
+
+function mbRadialInit() {
+  const canvas = document.getElementById('mb-radial-canvas');
+  const w = canvas.clientWidth || 300;
+  const h = canvas.clientHeight || 220;
+  const cx = w/2, cy = h/2;
+  const primary = getCSSColor('--color-primary');
+
+  // [0] center FAB  [1..4] action blobs
+  mbRadBlobs = [
+    { x: cx, y: cy, r: 44, color: primary },
+    { x: cx, y: cy, r: 0,  color: getCSSColor('--color-primary')   },
+    { x: cx, y: cy, r: 0,  color: getCSSColor('--color-secondary') },
+    { x: cx, y: cy, r: 0,  color: getCSSColor('--color-tertiary')  },
+    { x: cx, y: cy, r: 0,  color: getCSSColor('--color-error')     },
+  ];
+  mbRadTargets = mbRadBlobs.map(b => ({ x: b.x, y: b.y, r: b.r }));
+  mbRadVels    = mbRadBlobs.map(() => ({ x: 0, y: 0, r: 0 }));
+
+  if (mbRadial) mbRadial.destroy();
+  mbRadial = MU.metaball(canvas, mbRadBlobs, { threshold: 0.46, smooth: 2, animate: false });
+
+  function loop() {
+    mbRadBlobs.forEach((b, i) => {
+      const t = mbRadTargets[i], v = mbRadVels[i];
+      const [nx,nvx] = sp(b.x, t.x, v.x);
+      const [ny,nvy] = sp(b.y, t.y, v.y);
+      const [nr,nvr] = sp(b.r, t.r, v.r, 210, 22);
+      b.x=nx; b.y=ny; b.r=Math.max(0,nr);
+      v.x=nvx; v.y=nvy; v.r=nvr;
+    });
+    mbRadial.update(mbRadBlobs);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+}
+
+window.mbRadialToggle = function() {
+  mbRadialOpen = !mbRadialOpen;
+  const canvas = document.getElementById('mb-radial-canvas');
+  const w = canvas.clientWidth || 300;
+  const h = canvas.clientHeight || 220;
+  const cx = w/2, cy = h/2;
+  const dist = Math.min(w, h) * 0.32;
+  const labels = ['mb-rad-l1','mb-rad-l2','mb-rad-l3','mb-rad-l4'];
+
+  if (mbRadialOpen) {
+    // FAB shrinks a bit, action blobs burst outward in cardinal directions
+    mbRadTargets[0] = { x: cx, y: cy, r: 30 };
+    const angles = [-Math.PI/2, 0, Math.PI/2, Math.PI]; // top right bottom left
+    [1,2,3,4].forEach((bi, i) => {
+      mbRadBlobs[bi].x = cx; mbRadBlobs[bi].y = cy; mbRadBlobs[bi].r = 5;
+      mbRadVels[bi] = { x: 0, y: 0, r: 0 };
+      setTimeout(() => {
+        mbRadTargets[bi] = {
+          x: cx + Math.cos(angles[i]) * dist,
+          y: cy + Math.sin(angles[i]) * dist,
+          r: 34,
+        };
+      }, i * 55);
+    });
+    document.getElementById('mb-rad-center').style.opacity = '0.5';
+    document.getElementById('mb-rad-center').style.transform = 'translate(-50%,-50%) scale(0.8)';
+    setTimeout(() => {
+      labels.forEach(id => { document.getElementById(id).style.opacity = '1'; });
+    }, 350);
+  } else {
+    labels.forEach(id => { document.getElementById(id).style.opacity = '0'; });
+    mbRadTargets[0] = { x: cx, y: cy, r: 44 };
+    [1,2,3,4].forEach((bi, i) => {
+      setTimeout(() => { mbRadTargets[bi] = { x: cx, y: cy, r: 0 }; }, i * 40);
+    });
+    document.getElementById('mb-rad-center').style.opacity = '1';
+    document.getElementById('mb-rad-center').style.transform = 'translate(-50%,-50%) scale(1)';
+  }
+};
+
+/* ══════════════════════════════════════════════════════
+   DEMO 3: Cursor attract — orbiting blob + cursor blob
+   ══════════════════════════════════════════════════════ */
+let mbCursor = null;
+
+function mbCursorInit() {
+  const canvas = document.getElementById('mb-cursor-canvas');
+  const w = canvas.clientWidth || 300;
+  const h = canvas.clientHeight || 220;
+  const cx = w/2, cy = h/2;
+  const primary   = getCSSColor('--color-primary');
+  const secondary = getCSSColor('--color-secondary');
+  const tertiary  = getCSSColor('--color-tertiary');
+
+  const blobs = [
+    { x: cx,      y: cy,      r: 50, color: primary },   // center anchor
+    { x: cx+60,   y: cy,      r: 36, color: secondary },  // orbiter 1
+    { x: cx-60,   y: cy,      r: 28, color: tertiary },   // orbiter 2
+    { x: -200,    y: -200,    r: 38, color: primary },    // cursor ghost (offscreen)
+  ];
+
+  mbCursor = MU.metaball(canvas, blobs, { threshold: 0.45, smooth: 2.5, animate: false });
+
+  let t = 0;
+  let mx = -200, my = -200;
+  let cx2 = -200, cy2 = -200, cvx = 0, cvy = 0;
+
+  const demoEl = document.getElementById('mb-cursor-demo');
+  demoEl.addEventListener('pointermove', e => {
+    const rect = canvas.getBoundingClientRect();
+    mx = e.clientX - rect.left;
+    my = e.clientY - rect.top;
+  });
+  demoEl.addEventListener('pointerleave', () => { mx = -200; my = -200; });
+
+  function loop() {
+    t += 0.018;
+    // orbit 1: clockwise
+    blobs[1].x = cx + Math.cos(t) * 65;
+    blobs[1].y = cy + Math.sin(t) * 38;
+    // orbit 2: counter-clockwise, faster
+    blobs[2].x = cx + Math.cos(-t * 1.4 + 1.2) * 52;
+    blobs[2].y = cy + Math.sin(-t * 1.4 + 1.2) * 30;
+    // cursor blob springs toward mouse
+    [cx2, cvx] = sp(cx2, mx, cvx, 260, 22);
+    [cy2, cvy] = sp(cy2, my, cvy, 260, 22);
+    blobs[3].x = cx2; blobs[3].y = cy2;
+    // size: larger when close to center
+    const dist = Math.hypot(cx2 - cx, cy2 - cy);
+    blobs[3].r = mx < 0 ? 0 : Math.max(20, 42 - dist * 0.15);
+
+    mbCursor.update(blobs);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+}
+
+/* ══════════════════════════════════════════════════════
+   DEMO 4: Liquid loader — blobs breathe and travel
+   ══════════════════════════════════════════════════════ */
+let mbLoader = null;
+
+function mbLoaderInit() {
+  const canvas = document.getElementById('mb-loader-canvas');
+  const w = canvas.clientWidth || 300;
+  const h = canvas.clientHeight || 220;
+  const cx = w/2, cy = h/2;
+  const primary   = getCSSColor('--color-primary');
+  const secondary = getCSSColor('--color-secondary');
+
+  // 3 blobs: left ↔ right travellers + a center breathing blob
+  const blobs = [
+    { x: cx - 55, y: cy, r: 38, color: primary,   vx: 0.9,  vy: 0 },
+    { x: cx + 55, y: cy, r: 38, color: primary,   vx: -0.9, vy: 0 },
+    { x: cx,      y: cy, r: 28, color: secondary, vx: 0,    vy: 0 },
+  ];
+
+  mbLoader = MU.metaball(canvas, blobs, { threshold: 0.47, smooth: 2, animate: false });
+
+  let t = 0;
+  function loop() {
+    t += 0.03;
+    // left-right travellers bounce
+    for (const b of [blobs[0], blobs[1]]) {
+      b.x += b.vx;
+      const margin = b.r * 0.5;
+      if (b.x < margin)   { b.x = margin;   b.vx = Math.abs(b.vx); }
+      if (b.x > w-margin) { b.x = w-margin;  b.vx = -Math.abs(b.vx); }
+    }
+    // center blob breathes
+    blobs[2].r = 28 + Math.sin(t) * 12;
+    blobs[2].y = cy + Math.sin(t * 0.7) * 14;
+
+    mbLoader.update(blobs);
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+}
+
+/* ══════════════════════════════════════════════════════
+   INIT ALL DEMOS
+   ══════════════════════════════════════════════════════ */
+function initDemos() {
+  mbNavInit();
+  mbRadialInit();
+  mbCursorInit();
+  mbLoaderInit();
+  MU.syncBlobScenes();
+}
+
+window.addEventListener('load', initDemos);
+
+document.addEventListener('mu:themechange', () => {
+  const cs = getComputedStyle(document.documentElement);
+  const primary   = cs.getPropertyValue('--color-primary').trim();
+  const secondary = cs.getPropertyValue('--color-secondary').trim();
+  const tertiary  = cs.getPropertyValue('--color-tertiary').trim();
+  const error     = cs.getPropertyValue('--color-error').trim();
+  // blob loader CSS colors
+  document.querySelectorAll('.blob-loader-scene .blob, .blob-loader-3-scene .blob').forEach(b => b.style.background = primary);
+  // rebind aBlobs colors for demo A pill state
+  if (aBlobs.length && !aOpen) {
+    aBlobs[0].color = primary; aBlobs[1].color = primary;
+  }
+});
+
+/* ══════════════════════════════════════
+   WAVE PROGRESS PLAYGROUND
+   ══════════════════════════════════════ */
+(function() {
+  let wvMain      = null;
+  let wvCircMain  = null;
+  let wvColor     = 'primary';
+  let wvDlRaf     = null;
+  let wvBattery   = null;
+
+  const PRESETS = {
+    calm:      { amp: 3,  freq: 1.5, speed: 1.5,  sw: 2 },
+    energetic: { amp: 12, freq: 6,   speed: 8,    sw: 3 },
+    tight:     { amp: 4,  freq: 8,   speed: 4,    sw: 2 },
+    bold:      { amp: 8,  freq: 2,   speed: 2,    sw: 6 },
+    flat:      { amp: 1,  freq: 3,   speed: 3,    sw: 3 },
+  };
+
+  function buildMain() {
+    const amp   = +document.getElementById('wvctrl-amp').value;
+    const freq  = +document.getElementById('wvctrl-freq').value;
+    const sw    = +document.getElementById('wvctrl-sw').value;
+    const speed = +document.getElementById('wvctrl-speed').value;
+    const val   = +document.getElementById('wvctrl-val').value;
+
+    const el = document.getElementById('wv-linear-main');
+    if (wvMain) wvMain.destroy();
+    wvMain = MU.waveProgress(el, {
+      mode: 'linear', value: val, amplitude: amp, frequency: freq,
+      strokeWidth: sw, color: wvColor, animSpeed: speed,
+    });
+
+    const cel = document.getElementById('wv-circ-main');
+    if (wvCircMain) wvCircMain.destroy();
+    wvCircMain = MU.waveProgress(cel, {
+      mode: 'circular', value: val, radius: 36, amplitude: amp * 0.6,
+      frequency: Math.max(3, Math.round(freq * 2)), strokeWidth: sw,
+      color: wvColor, animSpeed: speed,
+    });
+  }
+
+  window.wvCtrlUpdate = function() {
+    const amp   = +document.getElementById('wvctrl-amp').value;
+    const freq  = +document.getElementById('wvctrl-freq').value;
+    const speed = +document.getElementById('wvctrl-speed').value;
+    const val   = +document.getElementById('wvctrl-val').value;
+    document.getElementById('wvctrl-amp-lbl').textContent   = amp + 'px';
+    document.getElementById('wvctrl-freq-lbl').textContent  = freq;
+    document.getElementById('wvctrl-speed-lbl').textContent = speed;
+    document.getElementById('wvctrl-val-lbl').textContent   = val + '%';
+    document.getElementById('wvctrl-sw-lbl').textContent    = document.getElementById('wvctrl-sw').value + 'px';
+    if (wvMain)     { wvMain.setValue(val); wvMain.setAmplitude(amp); wvMain.setFrequency(freq); }
+    if (wvCircMain) { wvCircMain.setValue(val); wvCircMain.setAmplitude(amp * 0.6); wvCircMain.setFrequency(Math.max(3, Math.round(freq * 2))); }
+  };
+
+  // rebuild needed when strokeWidth changes (requires new component)
+  window.wvCtrlRebuild = function() {
+    document.getElementById('wvctrl-sw-lbl').textContent = document.getElementById('wvctrl-sw').value + 'px';
+    buildMain();
+  };
+
+  window.wvSetVal = function(v) {
+    if (wvMain) wvMain.setValue(v);
+    if (v !== null) {
+      document.getElementById('wvctrl-val').value = v;
+      document.getElementById('wvctrl-val-lbl').textContent = v + '%';
+    }
+  };
+
+  window.wvSetColor = function(color, btn) {
+    wvColor = color;
+    document.querySelectorAll('[id^="wvcol-"]').forEach(b => b.classList.remove('chip-selected'));
+    btn.classList.add('chip-selected');
+    buildMain();
+  };
+
+  window.wvPreset = function(name) {
+    const p = PRESETS[name];
+    if (!p) return;
+    document.getElementById('wvctrl-amp').value   = p.amp;
+    document.getElementById('wvctrl-freq').value  = p.freq;
+    document.getElementById('wvctrl-speed').value = p.speed;
+    document.getElementById('wvctrl-sw').value    = p.sw;
+    document.getElementById('wvctrl-amp-lbl').textContent   = p.amp + 'px';
+    document.getElementById('wvctrl-freq-lbl').textContent  = p.freq;
+    document.getElementById('wvctrl-speed-lbl').textContent = p.speed;
+    document.getElementById('wvctrl-sw-lbl').textContent    = p.sw + 'px';
+    // fire slider fills
+    ['wvctrl-amp','wvctrl-freq','wvctrl-speed','wvctrl-sw'].forEach(id => {
+      document.getElementById(id)?.dispatchEvent(new Event('input'));
+    });
+    buildMain();
+  };
+
+  // download simulation
+  window.wvSimDownload = function() {
+    if (wvDlRaf) return;
+    const btn = document.getElementById('wv-dl-btn');
+    btn.disabled = true;
+    btn.textContent = 'Downloading…';
+    let v = 0;
+    const wvDl = window._wvDownload;
+    function tick() {
+      v = Math.min(100, v + (Math.random() * 3 + 0.5));
+      wvDl.setValue(v);
+      if (v < 100) {
+        wvDlRaf = setTimeout(tick, 80);
+      } else {
+        wvDlRaf = null;
+        btn.disabled = false;
+        btn.textContent = 'Simulate';
+        setTimeout(() => wvDl.setValue(0), 1200);
+      }
+    }
+    tick();
+  };
+
+  window.wvBatteryUpdate = function(v) {
+    document.getElementById('wv-battery-pct').innerHTML = v + '<span>percent</span>';
+    if (wvBattery) wvBattery.setValue(v);
+    // color shifts: red < 20, yellow < 40, green >= 40
+    const color = v < 20 ? 'error' : v < 40 ? 'secondary' : 'primary';
+    if (wvBattery) {
+      // rebuild with new color if it changed
+      const prev = wvBattery._lastColor;
+      if (prev !== color) {
+        wvBattery._lastColor = color;
+        wvBattery.destroy();
+        wvBattery = MU.waveProgress(document.getElementById('wv-battery'), {
+          mode: 'circular', value: v, radius: 36, amplitude: 3,
+          frequency: 10, strokeWidth: 3, color, animSpeed: 1.5,
+        });
+        wvBattery._lastColor = color;
+        wvBattery.setValue(v);
+      }
+    }
+  };
+
+  function init() {
+    // main controllable bar
+    buildMain();
+
+    // color role bars
+    const colorRoles = [
+      { id: 'wv-col-primary',   color: 'primary',   val: 80 },
+      { id: 'wv-col-secondary', color: 'secondary',  val: 60 },
+      { id: 'wv-col-tertiary',  color: 'tertiary',   val: 45 },
+      { id: 'wv-col-error',     color: 'error',      val: 30 },
+    ];
+    colorRoles.forEach(({ id, color, val }) => {
+      MU.waveProgress(document.getElementById(id), {
+        mode: 'linear', value: val, amplitude: 4, frequency: 3,
+        strokeWidth: 2, color, animSpeed: 2,
+      });
+    });
+
+    // indeterminate
+    MU.waveProgress(document.getElementById('wv-indet'), {
+      mode: 'linear', value: null, amplitude: 6, frequency: 4,
+      strokeWidth: 3, color: 'primary', animSpeed: 5,
+    });
+
+    // circular row: primary / secondary / tertiary / calm / indeterminate
+    MU.waveProgress(document.getElementById('wv-circ-sec'), {
+      mode: 'circular', value: 55, radius: 32, amplitude: 3, frequency: 8,
+      strokeWidth: 3, color: 'secondary', animSpeed: 2,
+    });
+    MU.waveProgress(document.getElementById('wv-circ-tert'), {
+      mode: 'circular', value: 78, radius: 32, amplitude: 3, frequency: 8,
+      strokeWidth: 3, color: 'tertiary', animSpeed: 2,
+    });
+    MU.waveProgress(document.getElementById('wv-circ-calm'), {
+      mode: 'circular', value: 40, radius: 32, amplitude: 1.5, frequency: 5,
+      strokeWidth: 2, color: 'primary', animSpeed: 0.8,
+    });
+    MU.waveProgress(document.getElementById('wv-circ-indet'), {
+      mode: 'circular', value: null, radius: 32, amplitude: 4, frequency: 10,
+      strokeWidth: 3, color: 'primary', animSpeed: 4,
+    });
+
+    // audio level — high energy
+    MU.waveProgress(document.getElementById('wv-audio'), {
+      mode: 'linear', value: 82, amplitude: 11, frequency: 7,
+      strokeWidth: 3, color: 'secondary', animSpeed: 9,
+    });
+
+    // download bar
+    window._wvDownload = MU.waveProgress(document.getElementById('wv-download'), {
+      mode: 'linear', value: 0, amplitude: 3, frequency: 2,
+      strokeWidth: 3, color: 'primary', animSpeed: 1.2,
+    });
+
+    // battery
+    wvBattery = MU.waveProgress(document.getElementById('wv-battery'), {
+      mode: 'circular', value: 72, radius: 36, amplitude: 3,
+      frequency: 10, strokeWidth: 3, color: 'primary', animSpeed: 1.5,
+    });
+    wvBattery._lastColor = 'primary';
+
+    // multi-stat
+    MU.waveProgress(document.getElementById('wv-stat-a'), {
+      mode: 'circular', value: 88, radius: 28, amplitude: 3, frequency: 6,
+      strokeWidth: 3, color: 'primary', animSpeed: 3,
+    });
+    MU.waveProgress(document.getElementById('wv-stat-b'), {
+      mode: 'circular', value: 62, radius: 28, amplitude: 3, frequency: 11,
+      strokeWidth: 3, color: 'secondary', animSpeed: 2,
+    });
+    MU.waveProgress(document.getElementById('wv-stat-c'), {
+      mode: 'circular', value: 74, radius: 28, amplitude: 3, frequency: 14,
+      strokeWidth: 3, color: 'tertiary', animSpeed: 1.2,
+    });
+
+    // init slider fills for controls
+    ['wvctrl-val','wvctrl-amp','wvctrl-freq','wvctrl-sw','wvctrl-speed'].forEach(id => {
+      document.getElementById(id)?.dispatchEvent(new Event('input'));
+    });
+  }
+
+  window.addEventListener('load', init);
+})();
+
+/* ══════════════════════════════════════
+   SPIKY CIRCLE PLAYGROUND
+   ══════════════════════════════════════ */
+(function() {
+  const PRESETS = {
+    gear:   { cx:12, cy:12, outerR:12, innerR:8.5,  spikes:12, smooth:0.55, holeR:4,    holeEn:true  },
+    star:   { cx:12, cy:12, outerR:12, innerR:4.5,  spikes:5,  smooth:0.25, holeR:null, holeEn:false },
+    sun:    { cx:12, cy:12, outerR:12, innerR:9,    spikes:16, smooth:0.7,  holeR:4,    holeEn:true  },
+    badge:  { cx:12, cy:12, outerR:11, innerR:9.5,  spikes:8,  smooth:1.0,  holeR:null, holeEn:false },
+    blob:   { cx:12, cy:12, outerR:11, innerR:9.8,  spikes:6,  smooth:1.0,  holeR:null, holeEn:false },
+    ring:   { cx:12, cy:12, outerR:12, innerR:6,    spikes:8,  smooth:1.0,  holeR:8.5,  holeEn:true  },
+    sharp:  { cx:12, cy:12, outerR:12, innerR:5,    spikes:8,  smooth:0.0,  holeR:null, holeEn:false },
+    donut:  { cx:12, cy:12, outerR:11, innerR:7.5,  spikes:24, smooth:0.85, holeR:5,    holeEn:true  },
+  };
+
+  let fillRule = 'evenodd';
+  let colorMode = 'primary';
+
+  function getOpts() {
+    const holeEn = document.getElementById('sl-hole-en').checked;
+    return {
+      cx:     +document.getElementById('sl-cx').value,
+      cy:     +document.getElementById('sl-cy').value,
+      outerR: +document.getElementById('sl-outerR').value,
+      innerR: +document.getElementById('sl-innerR').value,
+      spikes: +document.getElementById('sl-spikes').value,
+      smooth: +document.getElementById('sl-smooth').value,
+      holeR:  holeEn ? +document.getElementById('sl-holeR').value : null,
+    };
+  }
+
+  function applyColorMode(path) {
+    const cs = getComputedStyle(document.documentElement);
+    const get = v => cs.getPropertyValue(v).trim();
+    path.removeAttribute('fill');
+    path.style.fill = '';
+    if (colorMode === 'primary') {
+      path.style.fill   = get('--color-primary');
+      path.style.stroke = get('--color-on-primary');
+    } else if (colorMode === 'secondary') {
+      path.style.fill   = get('--color-secondary');
+      path.style.stroke = get('--color-on-secondary');
+    } else if (colorMode === 'tertiary') {
+      path.style.fill   = get('--color-tertiary');
+      path.style.stroke = get('--color-on-tertiary');
+    } else if (colorMode === 'gradient') {
+      // SVG gradient
+      const svg = document.getElementById('spiky-svg');
+      if (!svg.querySelector('#sg')) {
+        const defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
+        defs.innerHTML = `<linearGradient id="sg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="${get('--color-gradient-start')}"/>
+          <stop offset="100%" stop-color="${get('--color-gradient-end')}"/>
+        </linearGradient>`;
+        svg.insertBefore(defs, svg.firstChild);
+      } else {
+        const stops = svg.querySelectorAll('#sg stop');
+        stops[0].setAttribute('stop-color', get('--color-gradient-start'));
+        stops[1].setAttribute('stop-color', get('--color-gradient-end'));
+      }
+      path.style.fill   = 'url(#sg)';
+      path.style.stroke = 'none';
+    }
+  }
+
+  window.updateSpiky = function() {
+    const opts = getOpts();
+    const path = document.getElementById('spiky-path');
+    path.setAttribute('d', MU.spikyCircle(opts));
+    path.setAttribute('fill-rule', fillRule);
+    path.setAttribute('clip-rule', fillRule);
+    applyColorMode(path);
+
+    // update labels
+    ['cx','cy','outerR','innerR','spikes','smooth','holeR'].forEach(k => {
+      const el = document.getElementById('sv-' + k);
+      if (el) el.textContent = k === 'smooth'
+        ? (+document.getElementById('sl-' + k).value).toFixed(2)
+        : document.getElementById('sl-' + k).value;
+    });
+
+    // stats
+    const d = path.getAttribute('d');
+    document.getElementById('spiky-stats').innerHTML =
+      `<span style="color:var(--color-primary)">spikes:</span> ${opts.spikes} &nbsp;|&nbsp; ` +
+      `<span style="color:var(--color-primary)">points:</span> ${opts.spikes * 2} &nbsp;|&nbsp; ` +
+      `<span style="color:var(--color-primary)">hole:</span> ${opts.holeR != null ? opts.holeR : 'none'} &nbsp;|&nbsp; ` +
+      `<span style="color:var(--color-primary)">path chars:</span> ${d.length}`;
+
+    renderGrid();
+  };
+
+  window.setSpikyColor = function(mode, btn) {
+    colorMode = mode;
+    document.querySelectorAll('[id^="sc-col-"]').forEach(b => b.classList.remove('chip-selected'));
+    btn.classList.add('chip-selected');
+    updateSpiky();
+  };
+
+  window.setFillRule = function(rule, btn) {
+    fillRule = rule;
+    document.querySelectorAll('#fr-evenodd,#fr-nonzero').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('spiky-fillrule-badge').textContent = rule;
+    updateSpiky();
+  };
+
+  window.applyPreset = function(name) {
+    const p = PRESETS[name];
+    if (!p) return;
+    const set = (id, v) => {
+      const el = document.getElementById('sl-' + id);
+      if (el) { el.value = v; }
+    };
+    set('cx', p.cx); set('cy', p.cy);
+    set('outerR', p.outerR); set('innerR', p.innerR);
+    set('spikes', p.spikes); set('smooth', p.smooth);
+    set('holeR', p.holeR ?? 4);
+    document.getElementById('sl-hole-en').checked = !!p.holeEn;
+    updateSpiky();
+    // re-run MU slider fills
+    document.querySelectorAll('#spiky .slider').forEach(s => {
+      const ev = new Event('input'); s.dispatchEvent(ev);
+    });
+  };
+
+  window.copySpiky = function() {
+    const d = document.getElementById('spiky-path').getAttribute('d');
+    navigator.clipboard.writeText(d).then(() => {
+      const el = document.getElementById('spiky-copied');
+      el.style.opacity = '1';
+      setTimeout(() => { el.style.opacity = '0'; }, 1800);
+    });
+  };
+
+  /* grid: spikes 2..20, smooth 0 / 0.5 / 1 */
+  function renderGrid() {
+    const grid = document.getElementById('spiky-grid');
+    const cs = getComputedStyle(document.documentElement);
+    const primary = cs.getPropertyValue('--color-primary').trim();
+    const onPrimary = cs.getPropertyValue('--color-on-primary').trim();
+    const base = getOpts();
+    const smoothVals = [0, 0.5, 1.0];
+    const spikeVals  = [3,4,5,6,7,8,10,12,16,24,32];
+    grid.innerHTML = '';
+    for (const sp of spikeVals) {
+      for (const sm of smoothVals) {
+        const opts = { ...base, spikes: sp, smooth: sm };
+        const d = MU.spikyCircle(opts);
+        const tile = document.createElement('div');
+        tile.title = `spikes:${sp} smooth:${sm}`;
+        tile.style.cssText = `
+          width:70px;height:70px;
+          background:var(--color-surface-container);
+          border:1px solid var(--color-outline-variant);
+          border-radius:var(--radius-lg);
+          display:flex;align-items:center;justify-content:center;
+          cursor:pointer;transition:background var(--dur-3) var(--ease-out),transform var(--dur-4) var(--ease-spring-bouncy);
+          flex-shrink:0;
+        `;
+        tile.innerHTML = `<svg viewBox="0 0 24 24" width="58" height="58">
+          <path d="${d}" fill="${primary}" stroke="${onPrimary}" stroke-width="0.08"
+            fill-rule="${fillRule}" clip-rule="${fillRule}"/>
+          <text x="12" y="23.2" text-anchor="middle"
+            font-family="var(--font-sans)" font-size="2.4" fill="${onPrimary}" opacity="0.6">${sp}·${sm}</text>
+        </svg>`;
+        tile.addEventListener('click', () => {
+          document.getElementById('sl-spikes').value = sp;
+          document.getElementById('sl-smooth').value = sm;
+          updateSpiky();
+          document.querySelectorAll('#spiky .slider').forEach(s => s.dispatchEvent(new Event('input')));
+        });
+        tile.addEventListener('mouseenter', () => { tile.style.background = 'var(--color-surface-container-high)'; tile.style.transform = 'scale(1.08)'; });
+        tile.addEventListener('mouseleave', () => { tile.style.background = 'var(--color-surface-container)'; tile.style.transform = ''; });
+        grid.appendChild(tile);
+      }
+    }
+  }
+
+  /* wire up all sliders */
+  document.addEventListener('DOMContentLoaded', () => {
+    ['cx','cy','outerR','innerR','spikes','smooth','holeR'].forEach(k => {
+      document.getElementById('sl-' + k)?.addEventListener('input', updateSpiky);
+    });
+    updateSpiky();
+  });
+  // also fire after MU init
+  window.addEventListener('load', updateSpiky);
+})();
+
+document.addEventListener('mu:themechange', () => {
+  const primary = getCSSColor('--color-primary');
+  document.querySelectorAll('.blob-loader-scene .blob, .blob-loader-3-scene .blob').forEach(b => b.style.background = primary);
+  // reinit demos on theme change so colors update
+  mbNavInit(); mbRadialInit(); mbCursorInit(); mbLoaderInit();
+});
+</script>
+</body>
+</html>
