@@ -51,7 +51,7 @@
   --color-gradient-end:              oklch(76% 0.09 310);
 
   /* ── Typography — variable axes ── */
-  --font-sans: 'Google Sans Flex', system-ui, sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
 
   --type-display-large:   700 57px/64px var(--font-sans);
   --type-display-medium:  700 45px/52px var(--font-sans);
