@@ -2,14 +2,6 @@
    MOTIONUI — THEME  (dark, subtle, hue-tinted near-black)
    ═══════════════════════════════════════════════════════════ */
 
-@font-face {
-  font-family: 'Google Sans Flex';
-  src: url('./fonts/GoogleSansFlex[GRAD,opsz,wdth,wght].woff2') format('woff2-variations');
-  font-weight: 100 900;
-  font-style: normal;
-  font-display: swap;
-}
-
 :root {
   color-scheme: dark;
 
