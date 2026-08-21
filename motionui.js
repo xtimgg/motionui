@@ -317,6 +317,28 @@
   // each segment is either:
   //   ['M'|'L', x, y]                  - straight move/line
   //   ['Q', cx, cy, x, y, mx, my]       - quad curve, mx/my = start point (move-to before curve)
+  // angle cache keyed by spike count — computed once per unique spikes value
+  const _spikyCosCache = new Map();
+  const _spikySinCache = new Map();
+  function _getSpikyTrig(spikes) {
+    if (_spikyCosCache.has(spikes)) return [_spikyCosCache.get(spikes), _spikySinCache.get(spikes)];
+    const n = spikes * 2;
+    const cos = new Float32Array(n);
+    const sin = new Float32Array(n);
+    for (let k = 0; k < n; k++) {
+      const angle = (k * Math.PI) / spikes - Math.PI / 2;
+      cos[k] = Math.cos(angle);
+      sin[k] = Math.sin(angle);
+    }
+    _spikyCosCache.set(spikes, cos);
+    _spikySinCache.set(spikes, sin);
+    return [cos, sin];
+  }
+
+  // reusable coordinate buffers — avoid per-call allocation for common spike counts
+  const _spikyXBuf = new Float32Array(64);  // up to 32 spikes
+  const _spikyYBuf = new Float32Array(64);
+
   function _spikyOutline({
     cx = 12, cy = 12,
     outerR = 12, innerR = 6,
@@ -327,29 +349,30 @@
   } = {}) {
     const n  = spikes * 2;
     const vs = valleySmooth != null ? valleySmooth : smooth * 0.5;
-    const getOuterR = outerRs ? (i) => outerRs[i % outerRs.length] : () => outerR;
-    const pts = Array.from({ length: n }, (_, k) => {
-      const isTip = k % 2 === 1;
-      const angle = (k * Math.PI) / spikes - Math.PI / 2;
-      const r     = isTip ? getOuterR(Math.floor(k / 2)) : innerR;
-      return [cx + r * Math.cos(angle), cy + r * Math.sin(angle), isTip ? 1 : 0];
-    });
-    const cpLerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+    const [cos, sin] = _getSpikyTrig(spikes);
+    // fill coordinate buffers — no allocation
+    const xs = n <= 64 ? _spikyXBuf : new Float32Array(n);
+    const ys = n <= 64 ? _spikyYBuf : new Float32Array(n);
+    for (let k = 0; k < n; k++) {
+      const isTip = k & 1;
+      const r = isTip ? (outerRs ? outerRs[(k >> 1) % outerRs.length] : outerR) : innerR;
+      xs[k] = cx + r * cos[k];
+      ys[k] = cy + r * sin[k];
+    }
     const segs = [];
     for (let i = 0; i < n; i++) {
-      const prev  = pts[(i - 1 + n) % n];
-      const curr  = pts[i];
-      const next  = pts[(i + 1) % n];
-      const isTip = curr[2] === 1;
-      const t     = isTip ? smooth : vs;
+      const pi = (i - 1 + n) % n;
+      const ni = (i + 1) % n;
+      const isTip = i & 1;
+      const t = isTip ? smooth : vs;
       if (t === 0) {
-        segs.push([i === 0 ? 'M' : 'L', curr[0], curr[1]]);
+        segs.push([i === 0 ? 'M' : 'L', xs[i], ys[i]]);
       } else {
-        const p1 = cpLerp(curr, prev, t);
-        const p2 = cpLerp(curr, next, t);
-        if (i === 0) segs.push(['M', p1[0], p1[1]]);
-        else segs.push(['L', p1[0], p1[1]]);
-        segs.push(['Q', curr[0], curr[1], p2[0], p2[1]]);
+        const p1x = xs[i] + (xs[pi] - xs[i]) * t, p1y = ys[i] + (ys[pi] - ys[i]) * t;
+        const p2x = xs[i] + (xs[ni] - xs[i]) * t, p2y = ys[i] + (ys[ni] - ys[i]) * t;
+        if (i === 0) segs.push(['M', p1x, p1y]);
+        else segs.push(['L', p1x, p1y]);
+        segs.push(['Q', xs[i], ys[i], p2x, p2y]);
       }
     }
     return segs;
@@ -364,14 +387,35 @@
     valleySmooth = null,
     holeR = 4,
   } = {}) {
-    const segs = _spikyOutline({ cx, cy, outerR, innerR, outerRs, spikes, smooth, valleySmooth });
-    let d = '';
-    for (const s of segs) {
-      if (s[0] === 'M') d += 'M' + s[1].toFixed(2) + ',' + s[2].toFixed(2);
-      else if (s[0] === 'L') d += 'L' + s[1].toFixed(2) + ',' + s[2].toFixed(2);
-      else d += 'Q' + s[1].toFixed(2) + ',' + s[2].toFixed(2) + ' ' + s[3].toFixed(2) + ',' + s[4].toFixed(2);
+    const n  = spikes * 2;
+    const vs = valleySmooth != null ? valleySmooth : smooth * 0.5;
+    const [cos, sin] = _getSpikyTrig(spikes);
+    const xs = n <= 64 ? _spikyXBuf : new Float32Array(n);
+    const ys = n <= 64 ? _spikyYBuf : new Float32Array(n);
+    for (let k = 0; k < n; k++) {
+      const isTip = k & 1;
+      const r = isTip ? (outerRs ? outerRs[(k >> 1) % outerRs.length] : outerR) : innerR;
+      xs[k] = cx + r * cos[k];
+      ys[k] = cy + r * sin[k];
     }
-    d += 'Z';
+    // build path string directly — no segs array, no intermediate objects
+    const parts = [];
+    for (let i = 0; i < n; i++) {
+      const pi = (i - 1 + n) % n;
+      const ni = (i + 1) % n;
+      const isTip = i & 1;
+      const t = isTip ? smooth : vs;
+      if (t === 0) {
+        parts.push((i === 0 ? 'M' : 'L') + xs[i].toFixed(2) + ',' + ys[i].toFixed(2));
+      } else {
+        const p1x = xs[i] + (xs[pi] - xs[i]) * t, p1y = ys[i] + (ys[pi] - ys[i]) * t;
+        const p2x = xs[i] + (xs[ni] - xs[i]) * t, p2y = ys[i] + (ys[ni] - ys[i]) * t;
+        if (i === 0) parts.push('M' + p1x.toFixed(2) + ',' + p1y.toFixed(2));
+        else parts.push('L' + p1x.toFixed(2) + ',' + p1y.toFixed(2));
+        parts.push('Q' + xs[i].toFixed(2) + ',' + ys[i].toFixed(2) + ' ' + p2x.toFixed(2) + ',' + p2y.toFixed(2));
+      }
+    }
+    let d = parts.join('') + 'Z';
     if (holeR != null) {
       const hr = holeR;
       d += ' M' + (cx + hr).toFixed(2) + ',' + cy.toFixed(2)
