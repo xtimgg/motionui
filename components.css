@@ -2405,3 +2405,24 @@ input[type='range'].slider.slider-vert::-moz-range-progress {
 }
 
 /* ── end of design modes ─────────────────────────────────────────────────── */
+
+/* ── pull-to-refresh ────────────────────────────────────────────────────── */
+.mu-ptr-indicator {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%) translateY(-64px);
+  width: 40px; height: 40px;
+  border-radius: var(--radius-full);
+  background: var(--color-surface-container-highest);
+  box-shadow: var(--elevation-3);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--color-primary);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 9999;
+  will-change: transform, opacity;
+}
+.mu-ptr-indicator.mu-ptr-spinning svg {
+  animation: mu-ptr-spin 0.7s linear infinite;
+}
+@keyframes mu-ptr-spin { to { transform: rotate(360deg); } }
