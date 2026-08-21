@@ -3228,6 +3228,7 @@ void main() {
     wavyLinePath,
     waveProgress,
     updateSlider,
+    pullToRefresh,
   };
 
   /* Auto-init */
