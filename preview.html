@@ -2078,6 +2078,38 @@ document.addEventListener('mu:themechange', () => {
   // reinit demos on theme change so colors update
   mbNavInit(); mbRadialInit(); mbCursorInit(); mbLoaderInit();
 });
+
+/* ─── Pull to Refresh demo ─── */
+(function() {
+  const songs   = ['Body Parts','Hard Knock','value (MV)','Boosted','Roll Up','Find Me Again','Character','Childish','Tell Me','Selfish','All of Me','Daytona'];
+  const artists = ['slayr','nosgov','karta','prettifun','Lucy Bedroque'];
+  const scroll  = document.getElementById('ptr-demo-scroll');
+  const list    = document.getElementById('ptr-demo-list');
+  const status  = document.getElementById('ptr-status');
+
+  function render() {
+    list.innerHTML = songs.map((t, i) => `
+      <div class="card-outlined mu-ripple" style="padding:var(--space-3) var(--space-4);display:flex;align-items:center;gap:var(--space-3);cursor:pointer;border-radius:var(--radius-md)">
+        <div style="width:36px;height:36px;border-radius:var(--radius-sm);background:var(--color-primary-container);flex-shrink:0;display:flex;align-items:center;justify-content:center;font:600 12px/1 var(--font-sans);color:var(--color-on-primary-container)">${i+1}</div>
+        <div>
+          <div style="font:var(--type-label-large)">${t}</div>
+          <div style="font:var(--type-body-small);color:var(--color-on-surface-variant)">${artists[i % artists.length]}</div>
+        </div>
+      </div>`).join('');
+  }
+
+  render();
+  MU.pullToRefresh(scroll, async () => {
+    status.textContent = 'refreshing…';
+    await new Promise(r => setTimeout(r, 1600));
+    songs.sort(() => Math.random() - 0.5);
+    render();
+    status.textContent = `refreshed at ${new Date().toLocaleTimeString()}`;
+  }, {
+    topOffset: () => scroll.getBoundingClientRect().top,
+    canPull:   () => scroll.scrollTop <= 2,
+  });
+})();
 </script>
 </body>
 </html>
