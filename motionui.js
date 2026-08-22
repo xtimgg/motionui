@@ -3201,24 +3201,49 @@ void main() {
       return el.scrollTop <= 2;
     }
 
-    // pointer (covers mouse + touch via pointer events)
+    // ── touch ──────────────────────────────────────────────────────────────
+    // use raw touch events for touch — setPointerCapture on touch kills scroll
+    // detection and browsers often skip pointerdown entirely on scroll elements
+    el.addEventListener('touchstart', e => {
+      if (!canStart()) return;
+      startY = e.touches[0].clientY; curDrag = 0; active = true;
+      raf = requestAnimationFrame(dragLoop);
+    }, { passive: true });
+    el.addEventListener('touchmove', e => {
+      if (!active) return;
+      const dy = e.touches[0].clientY - startY;
+      if (dy > 0) e.preventDefault();   // block scroll only while pulling down
+      curDrag = Math.max(0, dy);
+    }, { passive: false });
+    el.addEventListener('touchend', e => {
+      if (!active) return;
+      active = false;
+      release(fillProg(curDrag) >= 1);
+      curDrag = 0;
+    });
+    el.addEventListener('touchcancel', () => { active = false; release(false); curDrag = 0; });
+
+    // ── pointer (mouse / stylus only) ──────────────────────────────────────
     el.addEventListener('pointerdown', e => {
-      if (e.button !== 0 || !canStart()) return;
+      if (e.pointerType === 'touch' || e.button !== 0 || !canStart()) return;
       startY = e.clientY; curDrag = 0; active = true; pid = e.pointerId;
       el.setPointerCapture(e.pointerId);
       raf = requestAnimationFrame(dragLoop);
     });
     el.addEventListener('pointermove', e => {
-      if (!active || e.pointerId !== pid) return;
+      if (e.pointerType === 'touch' || !active || e.pointerId !== pid) return;
       curDrag = Math.max(0, e.clientY - startY);
     });
     el.addEventListener('pointerup', e => {
-      if (!active || e.pointerId !== pid) return;
+      if (e.pointerType === 'touch' || !active || e.pointerId !== pid) return;
       active = false;
       release(fillProg(curDrag) >= 1);
       curDrag = 0;
     });
-    el.addEventListener('pointercancel', () => { active = false; release(false); curDrag = 0; });
+    el.addEventListener('pointercancel', e => {
+      if (e.pointerType === 'touch') return;
+      active = false; release(false); curDrag = 0;
+    });
 
     return {
       destroy() { bar.remove(); },
