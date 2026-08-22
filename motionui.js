@@ -3171,13 +3171,24 @@ void main() {
         // small delay so bounce settles before sweep
         await new Promise(r => setTimeout(r, 200));
         fp.style.transition = 'none'; fp.style.width = '0%';
-        requestAnimationFrame(() => {
-          fp.style.transition = 'width 2.3s cubic-bezier(.4,0,.2,1)';
-          fp.style.width = '100%';
-        });
+        if (indeterminate) {
+          fp.style.width = '28%';
+          fp.style.animation = 'mu-ptr-chase .9s cubic-bezier(.4,0,.2,1) infinite alternate';
+        } else {
+          requestAnimationFrame(() => {
+            fp.style.transition = 'width 2.3s cubic-bezier(.4,0,.2,1)';
+            fp.style.width = '100%';
+          });
+        }
         try { await onRefresh(); } catch(_) {}
+        fp.style.animation = '';
         if (doneLabel) {
           txt.textContent = doneLabel;
+          fp.style.transition = 'none'; fp.style.width = '0%';
+          requestAnimationFrame(() => {
+            fp.style.transition = 'width .4s cubic-bezier(.4,0,.2,1)';
+            fp.style.width = '100%';
+          });
           await new Promise(r => setTimeout(r, 1800));
         }
         cleanup();
