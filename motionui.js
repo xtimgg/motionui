@@ -3094,7 +3094,6 @@ void main() {
     doneLabel     = null,      // shown after sync; null = hide immediately
     indeterminate = false,     // start as chase animation; setProgress() switches to determinate
   } = {}) {
-  } = {}) {
     const el     = typeof scrollEl === 'string' ? document.querySelector(scrollEl) : scrollEl;
     const MAX_H  = barHeight * 1.5;
     const EXTRA  = MAX_H - barHeight;
