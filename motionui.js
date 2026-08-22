@@ -3220,7 +3220,16 @@ void main() {
     });
     el.addEventListener('pointercancel', () => { active = false; release(false); curDrag = 0; });
 
-    return { destroy() { bar.remove(); } };
+    return {
+      destroy() { bar.remove(); },
+      setProgress(pct) {
+        if (!syncing) return;
+        fp.style.animation = '';
+        fp.style.transition = 'width .6s cubic-bezier(.4,0,.2,1)';
+        fp.style.width = Math.round(Math.min(Math.max(pct, 0), 1) * 100) + '%';
+      },
+      setLabel(s) { if (syncing) txt.textContent = s; },
+    };
   }
 
   window.MU = {
