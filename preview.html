@@ -1202,13 +1202,13 @@
 <!-- ═════════ PULL TO REFRESH ═════════ -->
 <section class="sec" id="pullrefresh">
   <h2 class="sec-title">Pull to Refresh</h2>
-  <p class="sec-desc" style="margin-bottom:var(--space-4);color:var(--color-on-surface-variant);font:var(--type-body-medium)">drag down from the top of the list — arrow rotates at threshold, release to refresh. works with touch and mouse drag</p>
-  <div style="position:relative">
-    <div id="ptr-demo-scroll" style="height:320px;overflow-y:auto;border-radius:var(--radius-lg);background:var(--color-surface-container-low);border:1px solid var(--color-outline-variant)">
+  <p class="sec-desc" style="margin-bottom:var(--space-4);color:var(--color-on-surface-variant);font:var(--type-body-medium)">drag down from the top of the list — fills from both sides as you pull, meets at center to trigger, then sweeps accent left-to-right during sync. touch and mouse drag both work</p>
+  <div style="border-radius:var(--radius-lg);overflow:hidden;border:1px solid var(--color-outline-variant)">
+    <div id="ptr-demo-scroll" style="height:320px;overflow-y:auto;background:var(--color-surface-container-low)">
       <div id="ptr-demo-list" style="padding:var(--space-3);display:flex;flex-direction:column;gap:var(--space-2)"></div>
     </div>
-    <div id="ptr-status" style="margin-top:var(--space-3);font:var(--type-label-medium);color:var(--color-on-surface-variant);text-align:center">pull down to refresh</div>
   </div>
+  <div id="ptr-status" style="margin-top:var(--space-3);font:var(--type-label-medium);color:var(--color-on-surface-variant);text-align:center">pull down to refresh</div>
 </section>
 
 </main>
@@ -2081,33 +2081,42 @@ document.addEventListener('mu:themechange', () => {
 
 /* ─── Pull to Refresh demo ─── */
 (function() {
-  const songs   = ['Body Parts','Hard Knock','value (MV)','Boosted','Roll Up','Find Me Again','Character','Childish','Tell Me','Selfish','All of Me','Daytona'];
-  const artists = ['slayr','nosgov','karta','prettifun','Lucy Bedroque'];
-  const scroll  = document.getElementById('ptr-demo-scroll');
-  const list    = document.getElementById('ptr-demo-list');
-  const status  = document.getElementById('ptr-status');
+  const items = [
+    { title: 'Design tokens',      sub: 'theme.css · updated 2h ago' },
+    { title: 'Component library',  sub: 'components.css · updated 2h ago' },
+    { title: 'Motion primitives',  sub: 'motionui.js · updated 2h ago' },
+    { title: 'Preview page',       sub: 'preview.html · updated 2h ago' },
+    { title: 'Icon set',           sub: 'icons.svg · updated 5h ago' },
+    { title: 'Spacing scale',      sub: 'spacing.md · updated 1d ago' },
+    { title: 'Typography spec',    sub: 'type.md · updated 1d ago' },
+    { title: 'Color palette',      sub: 'palette.json · updated 2d ago' },
+    { title: 'Animation curves',   sub: 'easings.css · updated 3d ago' },
+    { title: 'Grid system',        sub: 'grid.md · updated 4d ago' },
+  ];
+  const scroll = document.getElementById('ptr-demo-scroll');
+  const list   = document.getElementById('ptr-demo-list');
+  const status = document.getElementById('ptr-status');
 
   function render() {
-    list.innerHTML = songs.map((t, i) => `
+    list.innerHTML = items.map((item, i) => `
       <div class="card-outlined mu-ripple" style="padding:var(--space-3) var(--space-4);display:flex;align-items:center;gap:var(--space-3);cursor:pointer;border-radius:var(--radius-md)">
         <div style="width:36px;height:36px;border-radius:var(--radius-sm);background:var(--color-primary-container);flex-shrink:0;display:flex;align-items:center;justify-content:center;font:600 12px/1 var(--font-sans);color:var(--color-on-primary-container)">${i+1}</div>
         <div>
-          <div style="font:var(--type-label-large)">${t}</div>
-          <div style="font:var(--type-body-small);color:var(--color-on-surface-variant)">${artists[i % artists.length]}</div>
+          <div style="font:var(--type-label-large)">${item.title}</div>
+          <div style="font:var(--type-body-small);color:var(--color-on-surface-variant)">${item.sub}</div>
         </div>
       </div>`).join('');
   }
 
   render();
   MU.pullToRefresh(scroll, async () => {
-    status.textContent = 'refreshing…';
-    await new Promise(r => setTimeout(r, 1600));
-    songs.sort(() => Math.random() - 0.5);
+    status.textContent = 'syncing…';
+    await new Promise(r => setTimeout(r, 1800));
+    items.sort(() => Math.random() - 0.5);
     render();
-    status.textContent = `refreshed at ${new Date().toLocaleTimeString()}`;
+    status.textContent = `synced at ${new Date().toLocaleTimeString()}`;
   }, {
-    topOffset: () => scroll.getBoundingClientRect().top,
-    canPull:   () => scroll.scrollTop <= 2,
+    doneLabel: 'synced',
   });
 })();
 </script>

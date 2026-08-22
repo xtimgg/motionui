@@ -3082,106 +3082,133 @@ void main() {
      PUBLIC API
      ───────────────────────────────────────────────────────── */
   // ── Pull-to-refresh ──────────────────────────────────────────────────────
+  // Creates a sync bar above scrollEl that pushes content down on pull.
+  // Bar has 3 layers: faint bg, mid-tone fills growing inward from sides (pull phase),
+  // then accent sweep left-to-right (sync phase).
+  // Physics: linear drag 0→BAR_H, asymptotic rubber zone BAR_H→MAX_H,
+  // CSS cubic-bezier bounce back on release.
   function pullToRefresh(scrollEl, onRefresh, {
-    threshold = 72,
-    topOffset = 0,
-    canPull   = null,
-    indicatorParent = document.body,
+    barHeight = 40,        // settled bar height px (also = drag threshold)
+    canPull   = null,      // () => bool — extra gate (e.g. scrollTop check)
+    label     = 'syncing…',
+    doneLabel = null,      // shown after sync; null = hide immediately
   } = {}) {
-    const INDICATOR_SIZE = 40;
-    const RUBBER = 0.28;
-    const el = () => typeof scrollEl === 'string' ? document.querySelector(scrollEl) : scrollEl;
-    const getTop = () => typeof topOffset === 'function' ? topOffset() : topOffset;
+    const el     = typeof scrollEl === 'string' ? document.querySelector(scrollEl) : scrollEl;
+    const MAX_H  = barHeight * 1.5;
+    const EXTRA  = MAX_H - barHeight;
+    const BOUNCE = `height .4s cubic-bezier(.25,1.4,.4,1)`;
+    const EASE   = `height .3s cubic-bezier(.22,1,.36,1)`;
 
-    const ind = document.createElement('div');
-    ind.className = 'mu-ptr-indicator';
-    ind.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>`;
-    ind.style.top = '0px';
-    indicatorParent.appendChild(ind);
+    // inject bar before scrollEl in DOM flow — no position:absolute needed
+    const bar = document.createElement('div');
+    bar.className = 'mu-ptr-bar';
+    bar.innerHTML = `
+      <div class="mu-ptr-bg"></div>
+      <div class="mu-ptr-fl"></div>
+      <div class="mu-ptr-fr"></div>
+      <div class="mu-ptr-fp"></div>
+      <div class="mu-ptr-txt">pull to sync</div>`;
+    el.parentNode.insertBefore(bar, el);
 
-    let startY = 0, startX = 0, active = false, triggered = false, refreshing = false, pointerId = null;
+    const fl  = bar.querySelector('.mu-ptr-fl');
+    const fr  = bar.querySelector('.mu-ptr-fr');
+    const fp  = bar.querySelector('.mu-ptr-fp');
+    const txt = bar.querySelector('.mu-ptr-txt');
 
-    const restingY   = () => getTop() - INDICATOR_SIZE - 8;
-    const triggeredY = () => getTop() + 10;
-    const dragY      = dy => dy < threshold ? dy : threshold + (dy - threshold) * RUBBER;
-    const progress   = dy => Math.min(dragY(dy) / threshold, 1);
+    let startY = 0, curDrag = 0, active = false, syncing = false, pid = null, raf = null;
 
-    function applyDrag(dy) {
-      const prog = progress(dy);
-      ind.style.transition = 'none';
-      ind.style.top       = (restingY() + (triggeredY() - restingY()) * prog) + 'px';
-      ind.style.transform = `translateX(-50%) rotate(${prog * -180}deg)`;
-      ind.style.opacity   = Math.min(prog * 2, 1);
-      triggered = prog >= 1;
+    function dragToH(dy) {
+      if (dy <= barHeight) return (dy / barHeight) * barHeight;
+      return barHeight + EXTRA * (1 - 1 / (1 + (dy - barHeight) / EXTRA));
+    }
+    function fillProg(dy) { return Math.min(dy / barHeight, 1); }
+
+    function paintDrag(dy) {
+      bar.style.transition = 'none';
+      bar.style.height = dragToH(dy) + 'px';
+      fl.style.transition = fr.style.transition = 'none';
+      const half = Math.min(fillProg(dy) * 50, 50);
+      fl.style.width = half + '%';
+      fr.style.width = half + '%';
+      txt.textContent = fillProg(dy) < 0.72 ? 'pull to sync' : 'release to sync';
     }
 
-    function hide() {
-      ind.classList.remove('mu-ptr-spinning');
-      ind.style.transition = 'opacity 200ms, top 200ms var(--ease-out)';
-      ind.style.top        = restingY() + 'px';
-      ind.style.opacity    = '0';
+    function dragLoop() {
+      if (!active) return;
+      paintDrag(curDrag);
+      raf = requestAnimationFrame(dragLoop);
     }
 
-    function showSpinner() {
-      ind.style.transition = 'top 180ms var(--ease-spring-soft), opacity 100ms';
-      ind.style.top        = triggeredY() + 'px';
-      ind.style.transform  = 'translateX(-50%) rotate(0deg)';
-      ind.style.opacity    = '1';
-      ind.classList.add('mu-ptr-spinning');
+    function release(triggered) {
+      if (raf) { cancelAnimationFrame(raf); raf = null; }
+      if (!triggered) {
+        fl.style.transition = fr.style.transition = BOUNCE;
+        fl.style.width = '0%'; fr.style.width = '0%';
+        bar.style.transition = BOUNCE; bar.style.height = '0';
+        txt.textContent = 'pull to sync';
+        return;
+      }
+      // triggered: bounce bar to settled height, lock fills, run sync
+      fl.style.transition = fr.style.transition = BOUNCE;
+      fl.style.width = '50%'; fr.style.width = '50%';
+      bar.style.transition = BOUNCE; bar.style.height = barHeight + 'px';
+      txt.textContent = label;
+      syncing = true;
+
+      const cleanup = () => {
+        syncing = false;
+        bar.style.transition = EASE; bar.style.height = '0';
+        fl.style.transition = fr.style.transition = EASE;
+        fl.style.width = '0%'; fr.style.width = '0%';
+        setTimeout(() => {
+          fp.style.transition = 'none'; fp.style.width = '0%';
+          txt.textContent = 'pull to sync';
+        }, 320);
+      };
+
+      (async () => {
+        // small delay so bounce settles before sweep
+        await new Promise(r => setTimeout(r, 200));
+        fp.style.transition = 'none'; fp.style.width = '0%';
+        requestAnimationFrame(() => {
+          fp.style.transition = 'width 2.3s cubic-bezier(.4,0,.2,1)';
+          fp.style.width = '100%';
+        });
+        try { await onRefresh(); } catch(_) {}
+        if (doneLabel) {
+          txt.textContent = doneLabel;
+          await new Promise(r => setTimeout(r, 1800));
+        }
+        cleanup();
+      })();
     }
 
     function canStart() {
-      if (refreshing) return false;
+      if (syncing) return false;
       if (canPull && !canPull()) return false;
-      const s = el(); if (s && s.scrollTop > 2) return false;
-      return true;
+      return el.scrollTop <= 2;
     }
 
-    async function doRefresh() {
-      if (!triggered || refreshing) return;
-      refreshing = true;
-      showSpinner();
-      try { await onRefresh(); } catch(_) {}
-      refreshing = false;
-      hide();
-    }
-
-    // touch
-    el()?.addEventListener('touchstart', e => {
-      if (!canStart()) return;
-      startY = e.touches[0].clientY; active = true; triggered = false;
-    }, { passive: true });
-    document.addEventListener('touchmove', e => {
-      if (!active) return;
-      const dy = e.touches[0].clientY - startY;
-      if (dy <= 0) { active = false; hide(); return; }
-      applyDrag(dy);
-    }, { passive: true });
-    document.addEventListener('touchend', async () => {
-      if (!active) return; active = false; await doRefresh(); hide();
-    }, { passive: true });
-    document.addEventListener('touchcancel', () => { active = false; hide(); }, { passive: true });
-
-    // pointer (mouse drag for desktop testing)
-    el()?.addEventListener('pointerdown', e => {
+    // pointer (covers mouse + touch via pointer events)
+    el.addEventListener('pointerdown', e => {
       if (e.button !== 0 || !canStart()) return;
-      startY = e.clientY; startX = e.clientX;
-      active = true; triggered = false; pointerId = e.pointerId;
-      el()?.setPointerCapture(e.pointerId);
+      startY = e.clientY; curDrag = 0; active = true; pid = e.pointerId;
+      el.setPointerCapture(e.pointerId);
+      raf = requestAnimationFrame(dragLoop);
     });
-    el()?.addEventListener('pointermove', e => {
-      if (!active || e.pointerId !== pointerId) return;
-      const dy = e.clientY - startY;
-      if (Math.abs(e.clientX - startX) > Math.abs(dy) && Math.abs(dy) < 10) { active = false; hide(); return; }
-      if (dy <= 0) { active = false; hide(); return; }
-      applyDrag(dy);
+    el.addEventListener('pointermove', e => {
+      if (!active || e.pointerId !== pid) return;
+      curDrag = Math.max(0, e.clientY - startY);
     });
-    el()?.addEventListener('pointerup', async e => {
-      if (!active || e.pointerId !== pointerId) return; active = false; await doRefresh(); if (!refreshing) hide();
+    el.addEventListener('pointerup', e => {
+      if (!active || e.pointerId !== pid) return;
+      active = false;
+      release(fillProg(curDrag) >= 1);
+      curDrag = 0;
     });
-    el()?.addEventListener('pointercancel', () => { active = false; hide(); });
+    el.addEventListener('pointercancel', () => { active = false; release(false); curDrag = 0; });
 
-    return { destroy() { ind.remove(); }, setTopOffset(v) { topOffset = v; } };
+    return { destroy() { bar.remove(); } };
   }
 
   window.MU = {
