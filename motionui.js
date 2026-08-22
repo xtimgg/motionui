@@ -3088,10 +3088,11 @@ void main() {
   // Physics: linear drag 0→BAR_H, asymptotic rubber zone BAR_H→MAX_H,
   // CSS cubic-bezier bounce back on release.
   function pullToRefresh(scrollEl, onRefresh, {
-    barHeight = 40,        // settled bar height px (also = drag threshold)
-    canPull   = null,      // () => bool — extra gate (e.g. scrollTop check)
-    label     = 'syncing…',
-    doneLabel = null,      // shown after sync; null = hide immediately
+    barHeight     = 40,        // settled bar height px (also = drag threshold)
+    canPull       = null,      // () => bool — extra gate (e.g. scrollTop check)
+    label         = 'syncing…',
+    doneLabel     = null,      // shown after sync; null = hide immediately
+    indeterminate = false,     // chase animation instead of one-shot fill sweep
   } = {}) {
     const el     = typeof scrollEl === 'string' ? document.querySelector(scrollEl) : scrollEl;
     const MAX_H  = barHeight * 1.5;
