@@ -39,17 +39,17 @@
       const h   = ((hue % 360) + 360) % 360;
       const hs  = ((h + 60)  % 360);
       const ht  = ((h + 120) % 360);
-      const sv  = (sat !== undefined && sat !== null) ? Math.max(0,   Math.min(100, sat)) : this.currentSat;
-      const bv  = (bri !== undefined && bri !== null) ? Math.max(0.5, Math.min(2.0, bri)) : this.currentBri;
+      const sv  = (sat !== undefined && sat !== null) ? sat : this.currentSat;
+      const bv  = (bri !== undefined && bri !== null) ? bri : this.currentBri;
       const cm  = sv / 50;   // chroma multiplier: 1.0 at sat=50, 0 at sat=0, 2.0 at sat=100
       // chroma scale: multiply base chroma by cm
       const oc  = c => +(c * cm).toFixed(4);
       // lightness scale: multiply base lightness % by bv, capped at 94
-      const ol  = l => Math.min(94, l * bv).toFixed(1);
+      const ol  = l => (l * bv).toFixed(1);
       // surface hsl saturation scaled by sat (base 50%)
       const ss  = base => Math.min(100, base * sv / 50).toFixed(2);
       // surface lightness scaled by bri
-      const sl  = l => Math.min(99, l * bv).toFixed(2);
+      const sl  = l => (l * bv).toFixed(2);
 
       const o   = (tone, c, hu) => `oklch(${ol(tone)}% ${oc(c)} ${hu.toFixed(1)})`;
       const r   = document.documentElement;
@@ -122,8 +122,8 @@
 
     setPalette({ hue, sat, bri } = {}) {
       if (hue !== undefined && hue !== null) this.currentHue = ((hue % 360) + 360) % 360;
-      if (sat !== undefined && sat !== null) this.currentSat = Math.max(0,   Math.min(100, sat));
-      if (bri !== undefined && bri !== null) this.currentBri = Math.max(0.5, Math.min(2.0, bri));
+      if (sat !== undefined && sat !== null) this.currentSat = sat;
+      if (bri !== undefined && bri !== null) this.currentBri = bri;
       this.applyTokens(this.currentHue, this.currentSat, this.currentBri);
     },
 
@@ -135,19 +135,19 @@
     },
 
     setSat(sat) {
-      this.currentSat = Math.max(0, Math.min(100, sat));
+      this.currentSat = sat;
       this.applyTokens(this.currentHue, this.currentSat, this.currentBri);
     },
 
     setBri(bri) {
-      this.currentBri = Math.max(0.5, Math.min(2.0, bri));
+      this.currentBri = bri;
       this.applyTokens(this.currentHue, this.currentSat, this.currentBri);
     },
 
     init(hue = 250, sat = 50, bri = 1.0) {
       this.currentHue = ((hue % 360) + 360) % 360;
-      this.currentSat = Math.max(0,   Math.min(100, sat));
-      this.currentBri = Math.max(0.5, Math.min(2.0, bri));
+      this.currentSat = sat;
+      this.currentBri = bri;
       this.applyTokens(this.currentHue, this.currentSat, this.currentBri);
     },
   };
