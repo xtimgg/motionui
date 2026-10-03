@@ -2898,6 +2898,8 @@ void main() {
           r.style.setProperty('--glass-border-hi', 'rgba(255,255,255,0.22)');
           r.style.setProperty('--glass-blur',      'blur(12px) saturate(1.4)');
           r.style.setProperty('--glass-spec-panel','0 0 0 1px rgba(255,255,255,.09) inset,0 1px 0 rgba(255,255,255,.22) inset,inset 0 1px 8px -2px rgba(255,255,255,.14),0 -1px 0 rgba(0,0,0,.14) inset');
+          r.style.setProperty('--glass-spec-hover','0 0 0 1px rgba(255,255,255,.12) inset,0 1px 0 rgba(255,255,255,.28) inset,inset 0 1px 10px -2px rgba(255,255,255,.18),0 -1px 0 rgba(0,0,0,.14) inset');
+          r.style.setProperty('--glass-spec-checked','0 0 0 1px rgba(255,255,255,.14) inset,0 1px 0 rgba(255,255,255,.30) inset,inset 0 1px 10px -2px rgba(255,255,255,.22),0 -1px 0 rgba(0,0,0,.18) inset');
         },
       },
       paper: {
@@ -2939,23 +2941,14 @@ void main() {
           r.style.setProperty('--bloom-text-dim',  'oklch(52% 0.01 0)');
           r.style.setProperty('--bloom-glow',      'var(--color-primary)');
           r.style.setProperty('--bloom-glow-2',    'var(--color-secondary)');
-          // boosted glow tokens — higher chroma/lightness for visibility on near-black
-          const hue = Palette.currentHue ?? 250;
           const sat = Palette.currentSat ?? 60;
-          const glowL = Math.min(0.82, 0.65 + (sat / 100) * 0.17);
-          const glowC = Math.min(0.30, 0.18 + (sat / 100) * 0.12);
-          r.style.setProperty('--bloom-glow-vivid',  `oklch(${glowL.toFixed(2)} ${glowC.toFixed(2)} ${hue})`);
-          r.style.setProperty('--bloom-glow-dim',    `oklch(${(glowL * 0.55).toFixed(2)} ${(glowC * 0.7).toFixed(2)} ${hue})`);
-          r.style.setProperty('--bloom-glow-alpha',  `oklch(${glowL.toFixed(2)} ${glowC.toFixed(2)} ${hue} / 0.18)`);
           // radius scales with sat — more sat = wider bloom
           const glowR = Math.round(20 + (sat / 100) * 28);
           r.style.setProperty('--bloom-radius',    `${glowR}px`);
-          r.style.setProperty('--bloom-radius-2',  `${glowR * 2}px`);
         },
       },
       terminal: {
         label: 'Terminal',
-        _fontLink: null,
         bodySetup() {
           if (!document.getElementById('mu-terminal-font')) {
             const l = document.createElement('link');
@@ -2963,13 +2956,11 @@ void main() {
             l.rel  = 'stylesheet';
             l.href = 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&display=swap';
             document.head.appendChild(l);
-            this._fontLink = l;
           }
         },
         teardown() {
           const l = document.getElementById('mu-terminal-font');
           if (l) l.remove();
-          this._fontLink = null;
         },
         applyTokens() {
           const r   = document.documentElement;
@@ -2986,7 +2977,6 @@ void main() {
           // bg/surface: near-black tinted at current hue
           const bg  = `hsl(${hue}, ${Math.min(100, 6 * cm).toFixed(1)}%, ${Math.min(8, 5 * bv).toFixed(1)}%)`;
           const sf  = `hsl(${hue}, ${Math.min(100, 7 * cm).toFixed(1)}%, ${Math.min(11, 7 * bv).toFixed(1)}%)`;
-          const sfh = `hsl(${hue}, ${Math.min(100, 8 * cm).toFixed(1)}%, ${Math.min(16, 10 * bv).toFixed(1)}%)`;
           // text: desaturated glow tint
           const text    = `oklch(${Math.min(94, 86 * bv).toFixed(1)}% ${oc(0.04)} ${hue})`;
           const textDim = `oklch(${Math.min(60, 45 * bv).toFixed(1)}% ${oc(0.02)} ${hue} / 0.55)`;
@@ -2996,10 +2986,8 @@ void main() {
           const faint    = `oklch(${(glowL * 100).toFixed(1)}% ${glowC.toFixed(3)} ${hue} / 0.08)`;
           r.style.setProperty('--trm-bg',          bg);
           r.style.setProperty('--trm-surface',     sf);
-          r.style.setProperty('--trm-surface-hi',  sfh);
           r.style.setProperty('--trm-green',       glow);
           r.style.setProperty('--trm-green-dim',   glowDim);
-          r.style.setProperty('--trm-green-ghost', `oklch(${(glowL * 100).toFixed(1)}% ${glowC.toFixed(3)} ${hue} / 0.25)`);
           r.style.setProperty('--trm-green-faint', faint);
           r.style.setProperty('--trm-text',        text);
           r.style.setProperty('--trm-text-dim',    textDim);
@@ -3009,30 +2997,22 @@ void main() {
       },
     },
 
-    // called on mu:themechange so paper tokens stay in sync with palette
+    // called on mu:themechange so design tokens stay in sync with palette
     _onThemeChange(e) {
       const mode = this._modes[this.current];
-      if (mode && mode.applyTokens.length > 0) {
-        mode.applyTokens(e?.detail?.hue, e?.detail?.sat, e?.detail?.bri);
-      }
+      if (mode) mode.applyTokens(e?.detail?.hue, e?.detail?.sat, e?.detail?.bri);
     },
 
     setDesign(name) {
-      const next = this._modes[name] ?? this._modes['material'];
+      const key  = this._modes[name] ? name : 'material';
+      const next = this._modes[key];
       const prev = this._modes[this.current];
 
       // teardown previous
       if (prev && prev.teardown) prev.teardown();
 
-      // remove all design attrs
-      const all = ['material','glassy','paper','bloom','terminal'];
-      all.forEach(d => document.documentElement.removeAttribute(`data-mu-design-${d}`));
-
-      this.current = name ?? 'material';
-      document.documentElement.setAttribute('data-mu-design', this.current);
-      if (this.current !== 'material') {
-        document.documentElement.setAttribute(`data-mu-design-${this.current}`, '');
-      }
+      this.current = key;
+      document.documentElement.setAttribute('data-mu-design', key);
 
       // setup next
       if (next.bodySetup) next.bodySetup();
