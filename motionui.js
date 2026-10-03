@@ -2900,6 +2900,7 @@ void main() {
           r.style.setProperty('--glass-spec-panel','0 0 0 1px rgba(255,255,255,.09) inset,0 1px 0 rgba(255,255,255,.22) inset,inset 0 1px 8px -2px rgba(255,255,255,.14),0 -1px 0 rgba(0,0,0,.14) inset');
           r.style.setProperty('--glass-spec-hover','0 0 0 1px rgba(255,255,255,.12) inset,0 1px 0 rgba(255,255,255,.28) inset,inset 0 1px 10px -2px rgba(255,255,255,.18),0 -1px 0 rgba(0,0,0,.14) inset');
           r.style.setProperty('--glass-spec-checked','0 0 0 1px rgba(255,255,255,.14) inset,0 1px 0 rgba(255,255,255,.30) inset,inset 0 1px 10px -2px rgba(255,255,255,.22),0 -1px 0 rgba(0,0,0,.18) inset');
+          r.style.setProperty('--glass-spec-focused','0 0 0 1px color-mix(in oklch,var(--color-primary) 42%,transparent) inset,0 1px 0 color-mix(in oklch,var(--color-primary) 90%,transparent) inset,inset 0 1px 10px -2px color-mix(in oklch,var(--color-primary) 66%,transparent),0 -1px 0 rgba(0,0,0,.18) inset');
         },
       },
       paper: {
