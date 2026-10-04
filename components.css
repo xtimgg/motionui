@@ -48,7 +48,7 @@ input[type='range'].slider::-moz-range-progress,
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  padding: 10px var(--space-6);
+  padding: 8px var(--space-6);
   border-radius: var(--radius-full);
   font: var(--type-label-large);
   font-variation-settings: var(--fv-label);
@@ -184,7 +184,7 @@ input[type='range'].slider::-moz-range-progress,
 .btn-fab-extended:hover { box-shadow: var(--elevation-4); }
 
 .btn-sm { padding: 6px var(--space-4); font: var(--type-label-medium); }
-.btn-lg { padding: 14px var(--space-8); font-size: 16px; }
+.btn-lg { padding: 10px var(--space-8); font-size: 16px; }
 
 /* ═══════════════════════════════════════════════════════════
    CHIPS
@@ -313,7 +313,7 @@ input[type='range'].slider::-moz-range-progress,
 
 .input {
   width: 100%;
-  padding: 14px var(--space-4);
+  padding: 9px var(--space-4);
   border-radius: var(--radius-lg);
   background: var(--color-surface-container-highest);
   color: var(--color-on-surface);
@@ -339,7 +339,7 @@ input[type='range'].slider::-moz-range-progress,
   outline: 2px solid var(--color-outline);
   outline-offset: -2px;
   border-radius: var(--radius-lg);
-  padding: 13px var(--space-4);
+  padding: 9px var(--space-4);
 }
 .input-outlined:hover { outline-color: var(--color-on-surface); }
 .input-outlined:focus  { outline-color: var(--color-primary); }
@@ -349,7 +349,7 @@ input[type='range'].slider::-moz-range-progress,
   background: var(--color-surface-container-highest);
   border: none;
   border-radius: var(--radius-full);
-  padding: 12px var(--space-5);
+  padding: 8px var(--space-5);
   outline: 2px solid transparent;
   outline-offset: -2px;
 }
@@ -956,7 +956,7 @@ input[type='range'].slider.slider-vert::-moz-range-progress {
 }
 .nav-drawer-item {
   display: flex; align-items: center;
-  gap: var(--space-3); padding: 14px var(--space-5);
+  gap: var(--space-3); padding: 10px var(--space-5);
   border-radius: var(--radius-full); cursor: pointer;
   color: var(--color-on-surface-variant); font: var(--type-label-large);
   position: relative; overflow: hidden;
@@ -1186,7 +1186,7 @@ input[type='range'].slider.slider-vert::-moz-range-progress {
   pointer-events: all;
 }
 .mu-ctx-sheet .mu-ctx-item {
-  padding: 14px 20px;
+  padding: 10px 20px;
   border-radius: 0 !important;
 }
 .mu-ctx-sheet .mu-ctx-sep { margin: 4px 0; }
@@ -1330,7 +1330,7 @@ input[type='range'].slider.slider-vert::-moz-range-progress {
   overflow: hidden;
 }
 .segmented-btn {
-  flex: 1; padding: 8px var(--space-5);
+  flex: 1; padding: 6px var(--space-5);
   background: transparent; color: var(--color-on-surface);
   font: var(--type-label-large); cursor: pointer; border: none;
   border-left: 1.5px solid var(--color-outline);
@@ -1353,7 +1353,7 @@ input[type='range'].slider.slider-vert::-moz-range-progress {
   transform: translateX(-50%) translateY(8px) scale(0.85);
   background: var(--color-inverse-surface);
   color: var(--color-inverse-on-surface);
-  padding: 5px var(--space-3);
+  padding: 3px var(--space-3);
   border-radius: var(--radius-sm);
   font: var(--type-body-small);
   white-space: nowrap; pointer-events: none;
