@@ -313,7 +313,7 @@ input[type='range'].slider::-moz-range-progress,
 
 .input {
   width: 100%;
-  padding: 9px var(--space-4);
+  padding: 10px var(--space-4);
   border-radius: var(--radius-lg);
   background: var(--color-surface-container-highest);
   color: var(--color-on-surface);
