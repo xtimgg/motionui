@@ -3069,11 +3069,12 @@ void main() {
   // Physics: linear drag 0→BAR_H, asymptotic rubber zone BAR_H→MAX_H,
   // CSS cubic-bezier bounce back on release.
   function pullToRefresh(scrollEl, onRefresh, {
-    barHeight     = 40,        // settled bar height px (also = drag threshold)
-    canPull       = null,      // () => bool — extra gate (e.g. scrollTop check)
-    label         = 'syncing…',
-    doneLabel     = null,      // shown after sync; null = hide immediately
-    indeterminate = false,     // start as chase animation; setProgress() switches to determinate
+    barHeight        = 40,     // settled bar height px
+    triggerThreshold = barHeight, // drag distance needed to trigger (default = barHeight)
+    canPull          = null,   // () => bool — extra gate (e.g. scrollTop check)
+    label            = 'syncing…',
+    doneLabel        = null,   // shown after sync; null = hide immediately
+    indeterminate    = false,  // start as chase animation; setProgress() switches to determinate
   } = {}) {
     const el     = typeof scrollEl === 'string' ? document.querySelector(scrollEl) : scrollEl;
     const MAX_H  = barHeight * 1.5;
@@ -3103,7 +3104,7 @@ void main() {
       if (dy <= barHeight) return (dy / barHeight) * barHeight;
       return barHeight + EXTRA * (1 - 1 / (1 + (dy - barHeight) / EXTRA));
     }
-    function fillProg(dy) { return Math.min(dy / barHeight, 1); }
+    function fillProg(dy) { return Math.min(dy / triggerThreshold, 1); }
 
     function paintDrag(dy) {
       bar.style.transition = 'none';
