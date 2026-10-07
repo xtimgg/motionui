@@ -3113,7 +3113,7 @@ void main() {
       const half = Math.min(fillProg(dy) * 50, 50);
       fl.style.width = half + '%';
       fr.style.width = half + '%';
-      txt.textContent = fillProg(dy) < 0.72 ? 'pull to sync' : 'release to sync';
+      txt.textContent = fillProg(dy) < 1 ? 'pull to sync' : 'release to sync';
     }
 
     function dragLoop() {
