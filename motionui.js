@@ -3228,6 +3228,7 @@ void main() {
 
     return {
       destroy() { bar.remove(); },
+      trigger() { if (!syncing) release(true); },
       setProgress(pct) {
         if (!syncing) return;
         fp.style.animation = '';
