@@ -1925,7 +1925,7 @@ void main() {
     const BODY_THRESHOLD = 12;
 
     let dragging = false, startY = 0, lastY = 0, rafPending = false;
-    let prevY = 0, prevT = 0, lastT = 0, velocity = 0;
+    let prevY = 0, prevT = 0, lastT = 0, velocity = 0, zk = 1;
 
     function applyDrag() {
       rafPending = false;
@@ -1937,7 +1937,7 @@ void main() {
         el.style.transform = `scaleY(${Math.min(scale, 1.05)})`;
       } else {
         el.style.transformOrigin = '';
-        el.style.transform = `translateY(${dy}px)`;
+        el.style.transform = `translateY(${dy / zk}px)`;
       }
       // fade this drawer's own backdrop (stacked-aware)
       const bd = resolveBackdrop(el);
@@ -1956,6 +1956,9 @@ void main() {
     function beginDrag(y) {
       dragging = true; startY = y; lastY = y; rafPending = false;
       velocity = 0; prevY = y; prevT = 0; lastT = performance.now();
+      const _h = el.offsetHeight;
+      const _r = _h ? el.getBoundingClientRect().height / _h : 1;
+      zk = (_r > 0.25 && _r < 4) ? _r : 1;
       el.style.transition = 'none';
     }
 
